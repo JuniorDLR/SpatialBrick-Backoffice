@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "clean-code": {
+      "source": "wondelai/skills",
+      "sourceType": "github",
+      "skillPath": "clean-code/SKILL.md",
+      "computedHash": "85a24ddfb5e2c74ac9c95e62cd56d4c28fde5ae1d05b25600ca1bbd8b892335c"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "java-maven": {
+      "source": "pluginagentmarketplace/custom-plugin-java",
+      "sourceType": "github",
+      "skillPath": "skills/java-maven/SKILL.md",
+      "computedHash": "7128cd4b59cc52c661a6a209af74063e1fc6523b70abaf19f28c885ed085c01b"
+    },
+    "jpa-patterns": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/jpa-patterns/SKILL.md",
+      "computedHash": "ab21a29fcb22efd31ca4eaf39e115eb91dc56e703ee8ab489a063964706b5562"
+    }
+  }
+}

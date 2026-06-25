@@ -16,6 +16,7 @@
 	</properties>
 
 	<dependencies>
+		<!--suppress VulnerableLibrariesLocal -->
 		<dependency>
 			<groupId>org.openxava</groupId>
 			<artifactId>openxava</artifactId>
@@ -44,13 +45,12 @@
 		</dependency>
 		-->
 		
-		<!-- PostgreSQL 
+		<!-- PostgreSQL -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
     		<artifactId>postgresql</artifactId>
     		<version>42.7.11</version>
 		</dependency>
-		-->
 		
 		<!-- Oracle 
 		<dependency>
