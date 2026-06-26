@@ -38,6 +38,7 @@ public class IntentoTest {
     @Required
     TestLadrillosCubos test;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @DefaultValueCalculator(org.openxava.calculators.CurrentDateCalculator.class)
     Date fechaPrueba;
 

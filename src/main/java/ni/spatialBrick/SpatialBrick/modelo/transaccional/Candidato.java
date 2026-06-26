@@ -27,6 +27,7 @@ public class Candidato {
     @Hidden
     int id;
 
+    @Lob
     @Stereotype("PHOTO")
     byte[] foto;
 
@@ -48,6 +49,7 @@ public class Candidato {
     Genero genero;
 
     @Required
+    @Temporal(TemporalType.DATE)
     @javax.validation.constraints.Past(message = "La fecha de nacimiento debe estar en el pasado")
     Date fechaNacimiento;
 
@@ -66,6 +68,7 @@ public class Candidato {
     @DisplaySize(50)
     String profesion;
 
+    @Temporal(TemporalType.TIMESTAMP)
     @Stereotype("DATETIME")
     @ReadOnly
     Date fechaRegistro;
