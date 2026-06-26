@@ -11,10 +11,14 @@ import java.util.Date;
 import java.util.Collection;
 
 @Entity
+@Table(indexes = {
+    @Index(name = "idx_intento_candidato", columnList = "candidato_id")
+})
 @View(members =
-    "DatosDeEvaluacion [ candidato, test ]; " +
+    "DatosDeEvaluacion [ candidato, test, modalidad ]; " +
     "Tiempos [ fechaPrueba, tiempoConsumido ]; " +
-    "Resultados [ estado, puntuacionTotal ]"
+    "Resultados [ estado, puntuacionTotal, percentil ]; " +
+    "AuditoriaPsicometrica [ cantidadAciertos, cantidadErrores, cantidadOmisiones ]"
 )
 @Getter @Setter
 public class IntentoTest {
@@ -47,6 +51,18 @@ public class IntentoTest {
 
     BigDecimal puntuacionTotal;
 
+    @ReadOnly
+    int cantidadAciertos;
+
+    @ReadOnly
+    int cantidadErrores;
+
+    @ReadOnly
+    int cantidadOmisiones;
+
+    @ReadOnly
+    int percentil;
+
     @Enumerated(EnumType.STRING)
     EstadoIntento estado = EstadoIntento.FINALIZADO;
 
@@ -78,14 +94,29 @@ public class IntentoTest {
 
     private void calcularPuntuacionFinal() {
         BigDecimal puntaje = BigDecimal.ZERO;
+        int aciertos = 0;
+        int errores = 0;
+        int omisiones = 0;
+
         if (this.respuestas != null && this.test != null) {
             for (RespuestaCandidato respuesta : this.respuestas) {
+                if (respuesta.getOpcionElegida() == OpcionRespuesta.OMITIDA) {
+                    omisiones++;
+                    continue;
+                }
+                
                 EjercicioCubos ejercicio = this.test.obtenerEjercicio(respuesta.getNumeroEjercicio());
                 if (respuesta.esAcertada(ejercicio)) {
                     puntaje = puntaje.add(new BigDecimal(ejercicio.getValorAcierto()));
+                    aciertos++;
+                } else {
+                    errores++;
                 }
             }
         }
         this.puntuacionTotal = puntaje;
+        this.cantidadAciertos = aciertos;
+        this.cantidadErrores = errores;
+        this.cantidadOmisiones = omisiones;
     }
 }
