@@ -3,23 +3,34 @@
 <!DOCTYPE controladores SYSTEM "dtds/controladores.dtd">
 
 <!-- 
-Documentación sobre controladores: 
+DocumentaciÃ³n sobre controladores: 
 https://www.openxava.org/OpenXavaDoc/docs/controllers_es.html
 
 Controladores por defecto, incluidos en OpenXava (puedes extender de ellos):
 https://github.com/openxava/openxava/blob/master/openxava/src/main/resources/xava/default-controllers.xml
  
-Ejemplos de controladores (de la aplicación de pruebas):
+Ejemplos de controladores (de la aplicaciÃ³n de pruebas):
 https://github.com/openxava/openxava/blob/master/openxavatest/src/main/resources/xava/controllers.xml
 -->
 
 <controladores>
+    <controlador nombre="TestLadrillosCubos">
+        <hereda-de controlador="Typical"/>
+        <accion nombre="save" modo="detail"
+            clase="ni.spatialBrick.SpatialBrick.acciones.GrabarTestLadrillos" 
+            imagen="save.gif" 
+            atajo-de-teclado="Control S"/>
+        <accion nombre="delete" modo="detail"
+            clase="ni.spatialBrick.SpatialBrick.acciones.EliminarTestLadrillos" 
+            imagen="delete.gif" 
+            atajo-de-teclado="Control D"/>
+    </controlador>
     
     <!-- Variable de entorno: 
     <var-entorno nombre="SpatialBrick_ANYO_DEFECTO" valor="2015"/>
     -->
     
-    <!-- Objeto de sesión:
+    <!-- Objeto de sesiÃ³n:
     <Objeto nombre="SpatialBrick_anyoActivo" clase="java.lang.Integer" valor="2015" 
             ambito="global"/>
     -->

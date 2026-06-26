@@ -51,6 +51,7 @@ public class IntentoTest {
 
     @javax.validation.constraints.AssertTrue(message = "El intento ha sido invalidado: El tiempo consumido excede el límite configurado para el test.")
     private boolean isTiempoValido() {
+        if (modalidad == ModalidadTest.PAPEL) return true; // Flexible para entrada manual
         if (tiempoConsumido == null || test == null) return true;
         return (tiempoConsumido.getValor() * 60) <= test.getTiempoLimiteSegundos();
     }

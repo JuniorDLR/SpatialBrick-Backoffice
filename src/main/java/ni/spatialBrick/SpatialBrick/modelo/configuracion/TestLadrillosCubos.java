@@ -38,6 +38,7 @@ public class TestLadrillosCubos {
     }
 
     @Stereotype("HTML_TEXT")
+    @Column(columnDefinition="TEXT")
     String instrucciones;
 
     public static final int TIEMPO_LIMITE_DEFECTO = 210;
@@ -45,7 +46,7 @@ public class TestLadrillosCubos {
     int tiempoLimiteSegundos = TIEMPO_LIMITE_DEFECTO;
 
     @ElementCollection
-    @ListProperties("numeroEjercicio, opcionCorrecta, valorAcierto")
+    @ListProperties("numeroEjercicio, opcionCorrecta, valorAcierto, urlImagenMonton")
     Collection<EjercicioCubos> ejercicios = new java.util.ArrayList<>();
 
     public EjercicioCubos obtenerEjercicio(int numero) {

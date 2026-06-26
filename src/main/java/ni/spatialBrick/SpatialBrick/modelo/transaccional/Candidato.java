@@ -66,9 +66,16 @@ public class Candidato {
     @DisplaySize(50)
     String profesion;
 
+    @Stereotype("DATETIME")
     @ReadOnly
-    @DefaultValueCalculator(org.openxava.calculators.CurrentTimestampCalculator.class)
     Date fechaRegistro;
+
+    @PrePersist
+    private void asigarFechaRegistro() {
+        if (this.fechaRegistro == null) {
+            this.fechaRegistro = new Date();
+        }
+    }
 
     @Depends("fechaNacimiento")
     public int getEdadCalculada() {
