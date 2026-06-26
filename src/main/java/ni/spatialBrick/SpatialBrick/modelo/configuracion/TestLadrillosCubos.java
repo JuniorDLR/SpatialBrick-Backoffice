@@ -7,8 +7,13 @@ import javax.persistence.*;
 import org.openxava.annotations.*;
 import lombok.*;
 import java.util.Collection;
+import java.math.BigDecimal;
 
 @Entity
+@View(members=
+    "instrucciones; " +
+    "ejercicios"
+)
 @Getter @Setter
 public class TestLadrillosCubos {
 
@@ -18,10 +23,21 @@ public class TestLadrillosCubos {
     int id;
 
     @Column(length=32)
-    @Required
+    @ReadOnly
     String codigoTest;
 
-    @Stereotype("TEXT_AREA")
+    @PrePersist
+    private void generarCodigo() {
+        if (this.codigoTest == null || this.codigoTest.isEmpty()) {
+            Integer maxId = (Integer) org.openxava.jpa.XPersistence.getManager()
+                .createQuery("select max(t.id) from TestLadrillosCubos t")
+                .getSingleResult();
+            int nextId = (maxId == null ? 0 : maxId) + 1;
+            this.codigoTest = String.format("BFA-%03d", nextId);
+        }
+    }
+
+    @Stereotype("HTML_TEXT")
     String instrucciones;
 
     public static final int TIEMPO_LIMITE_DEFECTO = 210;
@@ -42,10 +58,10 @@ public class TestLadrillosCubos {
         return null;
     }
 
-    public int evaluarIntento(IntentoTest intento) {
+    public BigDecimal evaluarIntento(IntentoTest intento) {
         if (intento != null && intento.getEstado() == EstadoIntento.FINALIZADO) {
             return intento.getPuntuacionTotal();
         }
-        return 0;
+        return BigDecimal.ZERO;
     }
 }

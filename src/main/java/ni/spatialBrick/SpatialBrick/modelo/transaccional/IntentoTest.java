@@ -6,10 +6,16 @@ import ni.spatialBrick.SpatialBrick.modelo.configuracion.*;
 import javax.persistence.*;
 import org.openxava.annotations.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Collection;
 
 @Entity
+@View(members =
+    "DatosDeEvaluacion [ candidato, test ]; " +
+    "Tiempos [ fechaPrueba, tiempoConsumido ]; " +
+    "Resultados [ estado, puntuacionTotal ]"
+)
 @Getter @Setter
 public class IntentoTest {
 
@@ -17,6 +23,10 @@ public class IntentoTest {
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Hidden
     int id;
+
+    @Hidden
+    @Enumerated(EnumType.STRING)
+    ModalidadTest modalidad = ModalidadTest.PAPEL;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @DescriptionsList(descriptionProperties="nombreCompleto")
@@ -28,26 +38,21 @@ public class IntentoTest {
     @Required
     TestLadrillosCubos test;
 
-    @ReadOnly
-    @DefaultValueCalculator(org.openxava.calculators.CurrentTimestampCalculator.class)
-    Date fechaHoraInicio;
+    @DefaultValueCalculator(org.openxava.calculators.CurrentDateCalculator.class)
+    Date fechaPrueba;
 
-    @ReadOnly
-    Date fechaHoraFin;
-
-    @ReadOnly
-    int puntuacionTotal;
-
-    @ReadOnly
     @Enumerated(EnumType.STRING)
-    EstadoIntento estado = EstadoIntento.EN_PROGRESO;
+    DuracionMinutos tiempoConsumido;
 
-    @javax.validation.constraints.AssertTrue(message = "El intento ha sido invalidado: El tiempo excede el límite configurado para el test.")
+    BigDecimal puntuacionTotal;
+
+    @Enumerated(EnumType.STRING)
+    EstadoIntento estado = EstadoIntento.FINALIZADO;
+
+    @javax.validation.constraints.AssertTrue(message = "El intento ha sido invalidado: El tiempo consumido excede el límite configurado para el test.")
     private boolean isTiempoValido() {
-        if (fechaHoraInicio == null || fechaHoraFin == null || test == null) return true;
-        long diferenciaMilisegundos = Math.abs(fechaHoraFin.getTime() - fechaHoraInicio.getTime());
-        long diferenciaSegundos = java.util.concurrent.TimeUnit.SECONDS.convert(diferenciaMilisegundos, java.util.concurrent.TimeUnit.MILLISECONDS);
-        return diferenciaSegundos <= test.getTiempoLimiteSegundos();
+        if (tiempoConsumido == null || test == null) return true;
+        return (tiempoConsumido.getValor() * 60) <= test.getTiempoLimiteSegundos();
     }
 
     @ElementCollection
@@ -65,18 +70,17 @@ public class IntentoTest {
         if (this.estado == EstadoIntento.FINALIZADO) {
             throw new IllegalStateException("El test ya se encuentra finalizado.");
         }
-        this.fechaHoraFin = new Date();
         this.estado = EstadoIntento.FINALIZADO;
         calcularPuntuacionFinal();
     }
 
     private void calcularPuntuacionFinal() {
-        int puntaje = 0;
+        BigDecimal puntaje = BigDecimal.ZERO;
         if (this.respuestas != null && this.test != null) {
             for (RespuestaCandidato respuesta : this.respuestas) {
                 EjercicioCubos ejercicio = this.test.obtenerEjercicio(respuesta.getNumeroEjercicio());
                 if (respuesta.esAcertada(ejercicio)) {
-                    puntaje += ejercicio.getValorAcierto();
+                    puntaje = puntaje.add(new BigDecimal(ejercicio.getValorAcierto()));
                 }
             }
         }
