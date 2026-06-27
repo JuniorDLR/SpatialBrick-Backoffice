@@ -3,20 +3,23 @@ package ni.spatialBrick.SpatialBrick.modelo.transaccional;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.*;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.*;
 import javax.persistence.*;
+import javax.validation.ValidationException;
+import javax.validation.constraints.*;
 import org.openxava.annotations.*;
-import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.*;
+import org.openxava.jpa.XPersistence;
 import lombok.*;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.Date;
 import com.google.i18n.phonenumbers.PhoneNumberUtil;
 import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber;
 import com.google.i18n.phonenumbers.NumberParseException;
-import javax.validation.constraints.*;
 
 @Entity
 @Table(indexes = {
     @Index(name = "idx_candidato_identificacion", columnList = "identificacion", unique = true)
 })
-@View(members = 
+@View(members =
     "General [ identificacion; nombreCompleto; nivelEducativo; genero, fechaNacimiento; foto ]; " +
     "PerfilProfesional [ puestoAplica, profesion ]; " +
     "Contacto [ email, telefono ]"
@@ -24,6 +27,9 @@ import javax.validation.constraints.*;
 @Tab(properties="identificacion, nombreCompleto, edadCalculada, email, fechaRegistro")
 @Getter @Setter
 public class Candidato {
+
+    private static final int EDAD_MINIMA_BFA = 14;
+    private static final String REGION_POR_DEFECTO = "NI";
 
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
@@ -44,11 +50,9 @@ public class Candidato {
     @Required
     String nombreCompleto;
 
-    @Required(message = "El nivel educativo es obligatorio para evaluar los resultados psicométricos")
     @Enumerated(EnumType.STRING)
     NivelEducativo nivelEducativo;
 
-    @Required
     @Enumerated(EnumType.STRING)
     Genero genero;
 
@@ -67,7 +71,6 @@ public class Candidato {
     @Pattern(regexp = "^[0-9+ -]+$", message = "El teléfono solo puede contener números, espacios, guiones y el símbolo +")
     String telefono;
 
-    @Required
     @Enumerated(EnumType.STRING)
     Puesto puestoAplica;
 
@@ -84,99 +87,37 @@ public class Candidato {
     @PrePersist
     @PreUpdate
     void validarYPrepararGuardado() {
-        if (this.fechaRegistro == null) {
-            this.fechaRegistro = new Date();
-        }
-        
-        if (this.identificacion != null) {
-            this.identificacion = this.identificacion.trim().toUpperCase();
-        }
-        if (this.email != null) {
-            this.email = this.email.trim().toLowerCase();
-        }
-        if (this.telefono != null && !this.telefono.trim().isEmpty()) {
-            try {
-                PhoneNumberUtil phoneUtil = PhoneNumberUtil.getInstance();
-                PhoneNumber numberProto = phoneUtil.parse(this.telefono, "NI");
-                
-                if (!phoneUtil.isValidNumber(numberProto)) {
-                    throw new javax.validation.ValidationException("El número de teléfono ingresado no es un número válido real.");
-                }
-                this.telefono = phoneUtil.format(numberProto, PhoneNumberUtil.PhoneNumberFormat.E164);
-            } catch (NumberParseException e) {
-                throw new javax.validation.ValidationException("El formato del número de teléfono es ilegible. Si es de otro país, asegúrese de iniciar con su prefijo (ej. +34).");
-            }
-        }
-
-        if (fechaNacimiento != null) {
-            java.time.LocalDate birth = new java.sql.Date(fechaNacimiento.getTime()).toLocalDate();
-            java.time.LocalDate now = java.time.LocalDate.now();
-            if (java.time.Period.between(birth, now).getYears() < EDAD_MINIMA_BFA) {
-                throw new javax.validation.ValidationException("El candidato debe tener la edad mínima requerida (" + EDAD_MINIMA_BFA + " años) para aplicar la prueba BFA.");
-            }
-        }
-
-        if (this.identificacion != null && !this.identificacion.trim().isEmpty()) {
-            Long countId = (Long) org.openxava.jpa.XPersistence.getManager()
-                .createQuery("select count(c) from Candidato c where lower(c.identificacion) = lower(:identificacion) and c.id <> :id")
-                .setParameter("identificacion", this.identificacion)
-                .setParameter("id", this.id)
-                .getSingleResult();
-            if (countId > 0) {
-                throw new javax.validation.ValidationException("Ya existe un candidato registrado en el sistema con este número de identificación.");
-            }
-        }
-
-        if (this.email != null && !this.email.trim().isEmpty()) {
-            Long countEmail = (Long) org.openxava.jpa.XPersistence.getManager()
-                .createQuery("select count(c) from Candidato c where lower(c.email) = lower(:email) and c.id <> :id")
-                .setParameter("email", this.email)
-                .setParameter("id", this.id)
-                .getSingleResult();
-            if (countEmail > 0) {
-                throw new javax.validation.ValidationException("Este correo electrónico ya está en uso por otro candidato.");
-            }
-        }
-
-        if (this.telefono != null && !this.telefono.trim().isEmpty()) {
-            Long countTel = (Long) org.openxava.jpa.XPersistence.getManager()
-                .createQuery("select count(c) from Candidato c where c.telefono = :telefono and c.id <> :id")
-                .setParameter("telefono", this.telefono)
-                .setParameter("id", this.id)
-                .getSingleResult();
-            if (countTel > 0) {
-                throw new javax.validation.ValidationException("Este número de teléfono ya está registrado en el sistema.");
-            }
-        }
+        asignarFechaRegistroSiEsNuevo();
+        sanitizarDatos();
+        validarCamposEnumObligatorios();
+        validarTelefonoInternacional();
+        validarEdadMinima();
+        validarUnicidades();
     }
 
     @PreRemove
     void validarAntesDeBorrar() {
-        Long countIntentos = (Long) org.openxava.jpa.XPersistence.getManager()
-            .createQuery("select count(i) from IntentoTest i where i.candidato.id = :id")
-            .setParameter("id", this.id)
-            .getSingleResult();
-            
+        Long countIntentos = contarRegistros(
+            "select count(i) from IntentoTest i where i.candidato.id = :id",
+            "id", this.id
+        );
         if (countIntentos > 0) {
-            throw new javax.validation.ValidationException("Protección de Auditoría: No se puede eliminar este candidato porque ya tiene pruebas psicométricas (Intento Test) registradas en su historial. Elimine primero sus pruebas si desea proceder.");
+            throw new ValidationException(
+                "Protección de Auditoría: No se puede eliminar este candidato porque ya tiene " +
+                "pruebas psicométricas registradas en su historial. Elimine primero sus pruebas si desea proceder."
+            );
         }
     }
-
-    private static final int EDAD_MINIMA_BFA = 14;
 
     @Depends("fechaNacimiento")
     public int getEdadCalculada() {
         if (fechaNacimiento == null) return 0;
-        java.time.LocalDate birth = new java.sql.Date(fechaNacimiento.getTime()).toLocalDate();
-        java.time.LocalDate now = java.time.LocalDate.now();
-        return java.time.Period.between(birth, now).getYears();
+        return calcularEdad();
     }
 
     public boolean isEdadValida() {
         if (fechaNacimiento == null) return true;
-        java.time.LocalDate birth = new java.sql.Date(fechaNacimiento.getTime()).toLocalDate();
-        java.time.LocalDate now = java.time.LocalDate.now();
-        return java.time.Period.between(birth, now).getYears() >= EDAD_MINIMA_BFA;
+        return calcularEdad() >= EDAD_MINIMA_BFA;
     }
 
     public IntentoTest iniciarTest(TestLadrillosCubos test) {
@@ -189,5 +130,95 @@ public class Candidato {
         intento.setEstado(EstadoIntento.EN_PROGRESO);
         intento.setFechaPrueba(new Date());
         return intento;
+    }
+
+    private void asignarFechaRegistroSiEsNuevo() {
+        if (this.fechaRegistro == null) {
+            this.fechaRegistro = new Date();
+        }
+    }
+
+    private void sanitizarDatos() {
+        if (this.identificacion != null) {
+            this.identificacion = this.identificacion.trim().toUpperCase();
+        }
+        if (this.email != null) {
+            this.email = this.email.trim().toLowerCase();
+        }
+    }
+
+    private void validarCamposEnumObligatorios() {
+        if (this.nivelEducativo == null) {
+            throw new ValidationException("El nivel educativo es obligatorio para evaluar los resultados psicométricos.");
+        }
+        if (this.genero == null) {
+            throw new ValidationException("El género es obligatorio.");
+        }
+        if (this.puestoAplica == null) {
+            throw new ValidationException("Debe seleccionar el puesto al que aplica el candidato.");
+        }
+    }
+
+    private void validarTelefonoInternacional() {
+        if (this.telefono == null || this.telefono.trim().isEmpty()) return;
+
+        try {
+            PhoneNumberUtil phoneUtil = PhoneNumberUtil.getInstance();
+            PhoneNumber numberProto = phoneUtil.parse(this.telefono, REGION_POR_DEFECTO);
+
+            if (!phoneUtil.isValidNumber(numberProto)) {
+                throw new ValidationException("El número de teléfono ingresado no es un número válido real.");
+            }
+            this.telefono = phoneUtil.format(numberProto, PhoneNumberUtil.PhoneNumberFormat.E164);
+        } catch (NumberParseException e) {
+            throw new ValidationException(
+                "El formato del número de teléfono es ilegible. Si es de otro país, asegúrese de iniciar con su prefijo (ej. +34)."
+            );
+        }
+    }
+
+    private void validarEdadMinima() {
+        if (fechaNacimiento == null) return;
+        if (calcularEdad() < EDAD_MINIMA_BFA) {
+            throw new ValidationException(
+                "El candidato debe tener la edad mínima requerida (" + EDAD_MINIMA_BFA + " años) para aplicar la prueba BFA."
+            );
+        }
+    }
+
+    private void validarUnicidades() {
+        validarCampoUnico("identificacion", this.identificacion,
+            "Ya existe un candidato registrado en el sistema con este número de identificación.");
+
+        validarCampoUnico("email", this.email,
+            "Este correo electrónico ya está en uso por otro candidato.");
+
+        validarCampoUnico("telefono", this.telefono,
+            "Este número de teléfono ya está registrado en el sistema.");
+    }
+
+    private void validarCampoUnico(String campo, String valor, String mensajeError) {
+        if (valor == null || valor.trim().isEmpty()) return;
+
+        Long count = contarRegistros(
+            "select count(c) from Candidato c where lower(c." + campo + ") = lower(:valor) and c.id <> :id",
+            "valor", valor
+        );
+        if (count > 0) {
+            throw new ValidationException(mensajeError);
+        }
+    }
+
+    private Long contarRegistros(String jpql, String paramNombre, Object paramValor) {
+        return (Long) XPersistence.getManager()
+            .createQuery(jpql)
+            .setParameter(paramNombre, paramValor)
+            .setParameter("id", this.id)
+            .getSingleResult();
+    }
+
+    private int calcularEdad() {
+        LocalDate nacimiento = new java.sql.Date(fechaNacimiento.getTime()).toLocalDate();
+        return Period.between(nacimiento, LocalDate.now()).getYears();
     }
 }
