@@ -9,6 +9,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Collection;
+import javax.validation.constraints.*;
 
 @Entity
 @Table(indexes = {
@@ -66,9 +67,9 @@ public class IntentoTest {
     @Enumerated(EnumType.STRING)
     EstadoIntento estado = EstadoIntento.FINALIZADO;
 
-    @javax.validation.constraints.AssertTrue(message = "El intento ha sido invalidado: El tiempo consumido excede el límite configurado para el test.")
+    @AssertTrue(message = "El intento ha sido invalidado: El tiempo consumido excede el límite configurado para el test.")
     private boolean isTiempoValido() {
-        if (modalidad == ModalidadTest.PAPEL) return true; // Flexible para entrada manual
+        if (modalidad == ModalidadTest.PAPEL) return true;
         if (tiempoConsumido == null || test == null) return true;
         return (tiempoConsumido.getValor() * 60) <= test.getTiempoLimiteSegundos();
     }

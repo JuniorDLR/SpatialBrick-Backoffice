@@ -2,12 +2,15 @@ package ni.spatialBrick.SpatialBrick.modelo.transaccional;
 
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.*;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.*;
-
 import javax.persistence.*;
 import org.openxava.annotations.*;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.*;
 import lombok.*;
 import java.util.Date;
+import com.google.i18n.phonenumbers.PhoneNumberUtil;
+import com.google.i18n.phonenumbers.Phonenumber.PhoneNumber;
+import com.google.i18n.phonenumbers.NumberParseException;
+import javax.validation.constraints.*;
 
 @Entity
 @Table(indexes = {
@@ -32,7 +35,8 @@ public class Candidato {
     byte[] foto;
 
     @Column(length=50, unique=true)
-    @Required
+    @Required(message = "La identificación es obligatoria")
+    @Pattern(regexp = "^[a-zA-Z0-9-]+$", message = "La identificación solo puede contener letras, números y guiones (ej. Pasaportes, DNI, etc.)")
     String identificacion;
 
     @Column(length=100)
@@ -40,9 +44,9 @@ public class Candidato {
     @Required
     String nombreCompleto;
 
-    @Column(length=50)
-    @Required
-    String nivelEducativo;
+    @Required(message = "El nivel educativo es obligatorio para evaluar los resultados psicométricos")
+    @Enumerated(EnumType.STRING)
+    NivelEducativo nivelEducativo;
 
     @Required
     @Enumerated(EnumType.STRING)
@@ -50,20 +54,24 @@ public class Candidato {
 
     @Required
     @Temporal(TemporalType.DATE)
-    @javax.validation.constraints.Past(message = "La fecha de nacimiento debe estar en el pasado")
+    @Past(message = "La fecha de nacimiento debe estar en el pasado")
     Date fechaNacimiento;
 
-    @Column(length=100)
-    @javax.validation.constraints.Email(message = "Debe ingresar un correo electrónico válido")
+    @Required(message = "El correo electrónico es obligatorio para contactar al candidato")
+    @Column(length=100, unique=true)
+    @Email(message = "Debe ingresar un correo electrónico válido")
     String email;
 
-    @Column(length=20)
+    @Required(message = "El teléfono es obligatorio")
+    @Column(length=20, unique=true)
+    @Pattern(regexp = "^[0-9+ -]+$", message = "El teléfono solo puede contener números, espacios, guiones y el símbolo +")
     String telefono;
 
     @Required
     @Enumerated(EnumType.STRING)
     Puesto puestoAplica;
 
+    @Required(message = "La profesión es obligatoria")
     @Column(length=100)
     @DisplaySize(50)
     String profesion;
@@ -74,11 +82,87 @@ public class Candidato {
     Date fechaRegistro;
 
     @PrePersist
-    private void asigarFechaRegistro() {
+    @PreUpdate
+    void validarYPrepararGuardado() {
         if (this.fechaRegistro == null) {
             this.fechaRegistro = new Date();
         }
+        
+        if (this.identificacion != null) {
+            this.identificacion = this.identificacion.trim().toUpperCase();
+        }
+        if (this.email != null) {
+            this.email = this.email.trim().toLowerCase();
+        }
+        if (this.telefono != null && !this.telefono.trim().isEmpty()) {
+            try {
+                PhoneNumberUtil phoneUtil = PhoneNumberUtil.getInstance();
+                PhoneNumber numberProto = phoneUtil.parse(this.telefono, "NI");
+                
+                if (!phoneUtil.isValidNumber(numberProto)) {
+                    throw new javax.validation.ValidationException("El número de teléfono ingresado no es un número válido real.");
+                }
+                this.telefono = phoneUtil.format(numberProto, PhoneNumberUtil.PhoneNumberFormat.E164);
+            } catch (NumberParseException e) {
+                throw new javax.validation.ValidationException("El formato del número de teléfono es ilegible. Si es de otro país, asegúrese de iniciar con su prefijo (ej. +34).");
+            }
+        }
+
+        if (fechaNacimiento != null) {
+            java.time.LocalDate birth = new java.sql.Date(fechaNacimiento.getTime()).toLocalDate();
+            java.time.LocalDate now = java.time.LocalDate.now();
+            if (java.time.Period.between(birth, now).getYears() < EDAD_MINIMA_BFA) {
+                throw new javax.validation.ValidationException("El candidato debe tener la edad mínima requerida (" + EDAD_MINIMA_BFA + " años) para aplicar la prueba BFA.");
+            }
+        }
+
+        if (this.identificacion != null && !this.identificacion.trim().isEmpty()) {
+            Long countId = (Long) org.openxava.jpa.XPersistence.getManager()
+                .createQuery("select count(c) from Candidato c where lower(c.identificacion) = lower(:identificacion) and c.id <> :id")
+                .setParameter("identificacion", this.identificacion)
+                .setParameter("id", this.id)
+                .getSingleResult();
+            if (countId > 0) {
+                throw new javax.validation.ValidationException("Ya existe un candidato registrado en el sistema con este número de identificación.");
+            }
+        }
+
+        if (this.email != null && !this.email.trim().isEmpty()) {
+            Long countEmail = (Long) org.openxava.jpa.XPersistence.getManager()
+                .createQuery("select count(c) from Candidato c where lower(c.email) = lower(:email) and c.id <> :id")
+                .setParameter("email", this.email)
+                .setParameter("id", this.id)
+                .getSingleResult();
+            if (countEmail > 0) {
+                throw new javax.validation.ValidationException("Este correo electrónico ya está en uso por otro candidato.");
+            }
+        }
+
+        if (this.telefono != null && !this.telefono.trim().isEmpty()) {
+            Long countTel = (Long) org.openxava.jpa.XPersistence.getManager()
+                .createQuery("select count(c) from Candidato c where c.telefono = :telefono and c.id <> :id")
+                .setParameter("telefono", this.telefono)
+                .setParameter("id", this.id)
+                .getSingleResult();
+            if (countTel > 0) {
+                throw new javax.validation.ValidationException("Este número de teléfono ya está registrado en el sistema.");
+            }
+        }
     }
+
+    @PreRemove
+    void validarAntesDeBorrar() {
+        Long countIntentos = (Long) org.openxava.jpa.XPersistence.getManager()
+            .createQuery("select count(i) from IntentoTest i where i.candidato.id = :id")
+            .setParameter("id", this.id)
+            .getSingleResult();
+            
+        if (countIntentos > 0) {
+            throw new javax.validation.ValidationException("Protección de Auditoría: No se puede eliminar este candidato porque ya tiene pruebas psicométricas (Intento Test) registradas en su historial. Elimine primero sus pruebas si desea proceder.");
+        }
+    }
+
+    private static final int EDAD_MINIMA_BFA = 14;
 
     @Depends("fechaNacimiento")
     public int getEdadCalculada() {
@@ -88,10 +172,7 @@ public class Candidato {
         return java.time.Period.between(birth, now).getYears();
     }
 
-    private static final int EDAD_MINIMA_BFA = 14;
-
-    @javax.validation.constraints.AssertTrue(message = "El candidato debe tener la edad mínima requerida para aplicar la prueba BFA")
-    private boolean isEdadValida() {
+    public boolean isEdadValida() {
         if (fechaNacimiento == null) return true;
         java.time.LocalDate birth = new java.sql.Date(fechaNacimiento.getTime()).toLocalDate();
         java.time.LocalDate now = java.time.LocalDate.now();

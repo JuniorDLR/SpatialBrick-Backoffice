@@ -9,8 +9,7 @@ import org.openxava.util.*;
 public class SpatialBrick {
 
 	public static void main(String[] args) throws Exception {
-		// DBServer.start("SpatialBrick-db"); // Comentado para usar PostgreSQL
-		AppServer.run("SpatialBrick"); // Usa AppServer.run("") para funcionar en el contexto raíz
+		AppServer.run("SpatialBrick");
 	}
 
 }

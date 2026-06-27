@@ -8,6 +8,7 @@ import org.openxava.annotations.*;
 import lombok.*;
 import java.util.List;
 import java.math.BigDecimal;
+import javax.validation.constraints.*;
 
 @Entity
 @View(members=
@@ -44,7 +45,6 @@ public class TestLadrillosCubos {
             this.codigoTest = String.format("BFA-%03d", nextId);
         }
 
-        // Auto-incrementar el número de ejercicio garantizando el orden
         if (this.ejercicios != null) {
             int contador = 1;
             for (EjercicioCubos ej : this.ejercicios) {
@@ -62,11 +62,11 @@ public class TestLadrillosCubos {
     @Column(columnDefinition="boolean default true", nullable = false)
     boolean activo = true;
 
-    @javax.validation.constraints.Min(value = 0, message = "Los minutos no pueden ser negativos")
+    @Min(value = 0, message = "Los minutos no pueden ser negativos")
     int tiempoMinutos = 3;
 
-    @javax.validation.constraints.Min(value = 0, message = "Los segundos no pueden ser negativos")
-    @javax.validation.constraints.Max(value = 59, message = "Los segundos no pueden pasar de 59")
+    @Min(value = 0, message = "Los segundos no pueden ser negativos")
+    @Max(value = 59, message = "Los segundos no pueden pasar de 59")
     int tiempoSegundos = 30;
 
     @Hidden
@@ -74,7 +74,7 @@ public class TestLadrillosCubos {
         return (tiempoMinutos * 60) + tiempoSegundos;
     }
 
-    @javax.validation.constraints.Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
+    @Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
     @ElementCollection
     @OrderColumn(name="orden_ejercicio")
     @ListProperties("opcionCorrecta, valorAcierto, urlImagenMonton")

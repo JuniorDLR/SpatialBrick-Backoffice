@@ -6,6 +6,7 @@ import javax.persistence.*;
 import org.openxava.annotations.*;
 import lombok.*;
 import javax.validation.constraints.AssertTrue;
+import javax.validation.constraints.Min;
 
 @Embeddable
 @Getter @Setter
@@ -23,7 +24,7 @@ public class EjercicioCubos {
     @Enumerated(EnumType.STRING)
     OpcionRespuesta opcionCorrecta;
 
-    @javax.validation.constraints.Min(value = 1, message = "El valor del acierto debe ser mayor a 0")
+    @Min(value = 1, message = "El valor del acierto debe ser mayor a 0")
     int valorAcierto;
 
     public boolean verificarRespuesta(OpcionRespuesta opcionElegida) {
