@@ -36,9 +36,9 @@ public class Candidato {
     @Hidden
     int id;
 
-    @Lob
-    @Stereotype("PHOTO")
-    byte[] foto;
+    @File(acceptFileTypes="image/*")
+    @Column(length=32)
+    String foto;
 
     @Column(length=50, unique=true)
     @Required(message = "La identificación es obligatoria")

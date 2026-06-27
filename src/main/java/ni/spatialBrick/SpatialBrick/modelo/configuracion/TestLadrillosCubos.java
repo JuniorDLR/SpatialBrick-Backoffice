@@ -1,14 +1,38 @@
 package ni.spatialBrick.SpatialBrick.modelo.configuracion;
 
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.EstadoIntento;
-import ni.spatialBrick.SpatialBrick.modelo.transaccional.*;
-
-import javax.persistence.*;
-import org.openxava.annotations.*;
-import lombok.*;
+import ni.spatialBrick.SpatialBrick.modelo.transaccional.IntentoTest;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.PrePersist;
+import javax.persistence.PreUpdate;
+import javax.validation.ValidationException;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.Size;
+import org.openxava.annotations.DefaultValueCalculator;
+import org.openxava.annotations.Hidden;
+import org.openxava.annotations.ListProperties;
+import org.openxava.annotations.ReadOnly;
+import org.openxava.annotations.SearchKey;
+import org.openxava.annotations.Stereotype;
+import org.openxava.annotations.View;
+import org.openxava.annotations.Required;
+import org.openxava.calculators.TrueCalculator;
+import org.openxava.jpa.XPersistence;
+import org.openxava.web.editors.AttachedFile;
+import org.openxava.web.editors.FilePersistorFactory;
+import org.openxava.web.editors.IFilePersistor;
+import org.apache.tika.Tika;
+import lombok.Getter;
+import lombok.Setter;
+import java.util.ArrayList;
 import java.util.List;
 import java.math.BigDecimal;
-import javax.validation.constraints.*;
 
 @Entity
 @View(members=
@@ -19,11 +43,15 @@ import javax.validation.constraints.*;
 @Getter @Setter
 public class TestLadrillosCubos {
 
+    private static final int MINUTOS_POR_DEFECTO = 3;
+    private static final int SEGUNDOS_POR_DEFECTO = 30;
+
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Hidden
     int id;
 
+    @SearchKey
     @Column(length=32)
     @ReadOnly
     String codigoTest;
@@ -31,20 +59,36 @@ public class TestLadrillosCubos {
     @PrePersist
     @PreUpdate
     private void alGuardar() {
+        aplicarTiempoPorDefectoSiEsVacio();
+        generarCodigoTest();
+        ordenarYEnumerarEjercicios();
+        validarImagenesDeEjercicios();
+    }
 
-        if (this.getTiempoLimiteSegundos() <= 0) {
-            this.tiempoMinutos = 3;
-            this.tiempoSegundos = 30;
+    private void aplicarTiempoPorDefectoSiEsVacio() {
+        // En OpenXava, si el usuario deja los campos numéricos vacíos, llegan como 0.
+        // Si ambos son 0 (vacíos), aplicamos la regla por defecto.
+        // Si hay números negativos, los ignoramos aquí para que la validación @Min haga su trabajo y lance el error.
+        if (this.tiempoMinutos == 0 && this.tiempoSegundos == 0) {
+            this.tiempoMinutos = MINUTOS_POR_DEFECTO;
+            this.tiempoSegundos = SEGUNDOS_POR_DEFECTO;
         }
+    }
 
+    private void generarCodigoTest() {
         if (this.codigoTest == null || this.codigoTest.isEmpty()) {
-            Integer maxId = (Integer) org.openxava.jpa.XPersistence.getManager()
-                .createQuery("select max(t.id) from TestLadrillosCubos t")
-                .getSingleResult();
-            int nextId = (maxId == null ? 0 : maxId) + 1;
-            this.codigoTest = String.format("BFA-%03d", nextId);
+            this.codigoTest = String.format("BFA-%03d", obtenerSiguienteId());
         }
+    }
 
+    private int obtenerSiguienteId() {
+        Integer maxId = (Integer) XPersistence.getManager()
+            .createQuery("select max(t.id) from TestLadrillosCubos t")
+            .getSingleResult();
+        return (maxId == null ? 0 : maxId) + 1;
+    }
+
+    private void ordenarYEnumerarEjercicios() {
         if (this.ejercicios != null) {
             int contador = 1;
             for (EjercicioCubos ej : this.ejercicios) {
@@ -53,21 +97,58 @@ public class TestLadrillosCubos {
         }
     }
 
+    private void validarImagenesDeEjercicios() {
+        if (this.ejercicios == null) return;
+
+        int numero = 1;
+        Tika tika = new Tika();
+        IFilePersistor persistor = FilePersistorFactory.getInstance();
+
+        for (EjercicioCubos ej : this.ejercicios) {
+            String fileId = ej.getImagenMonton();
+
+            if (fileId == null || fileId.trim().isEmpty()) {
+                throw new ValidationException(
+                    "Ejercicio #" + numero + ": Debe subir una imagen válida (JPG o PNG). " +
+                    "Si subió un archivo, verifique que sea una imagen real y no otro tipo de archivo."
+                );
+            }
+
+            try {
+                AttachedFile file = persistor.find(fileId);
+                byte[] imagen = file.getData();
+
+                String mimeType = tika.detect(imagen);
+                if (!mimeType.equals("image/jpeg") && !mimeType.equals("image/png")) {
+                    throw new ValidationException(
+                        "Ejercicio #" + numero + ": Alerta de Seguridad — El archivo subido fue detectado como '" + mimeType + "'. " +
+                        "Solo se permiten formatos JPG o PNG reales."
+                    );
+                }
+            } catch (ValidationException ve) {
+                throw ve; // Re-lanzar la excepción de validación sin envolverla
+            } catch (Exception e) {
+                throw new ValidationException("Ejercicio #" + numero + ": Error al leer el archivo. " + e.getMessage());
+            }
+            numero++;
+        }
+    }
+
     @Required(message = "Las instrucciones del test son obligatorias")
     @Stereotype("HTML_TEXT")
     @Column(columnDefinition="TEXT")
     String instrucciones;
 
-    @DefaultValueCalculator(org.openxava.calculators.TrueCalculator.class)
+    @DefaultValueCalculator(TrueCalculator.class)
     @Column(columnDefinition="boolean default true", nullable = false)
     boolean activo = true;
 
     @Min(value = 0, message = "Los minutos no pueden ser negativos")
-    int tiempoMinutos = 3;
+    int tiempoMinutos = MINUTOS_POR_DEFECTO;
 
     @Min(value = 0, message = "Los segundos no pueden ser negativos")
     @Max(value = 59, message = "Los segundos no pueden pasar de 59")
-    int tiempoSegundos = 30;
+    int tiempoSegundos = SEGUNDOS_POR_DEFECTO;
 
     @Hidden
     public int getTiempoLimiteSegundos() {
@@ -76,9 +157,8 @@ public class TestLadrillosCubos {
 
     @Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
     @ElementCollection
-    @OrderColumn(name="orden_ejercicio")
-    @ListProperties("opcionCorrecta, valorAcierto, urlImagenMonton")
-    List<EjercicioCubos> ejercicios = new java.util.ArrayList<>();
+    @ListProperties("opcionCorrecta, valorAcierto, imagenMonton")
+    List<EjercicioCubos> ejercicios = new ArrayList<>();
 
     public EjercicioCubos obtenerEjercicio(int numero) {
         if (this.ejercicios == null) return null;
