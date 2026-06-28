@@ -6,6 +6,7 @@ import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.ModalidadTest;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.OpcionRespuesta;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.EjercicioCubos;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.TestLadrillosCubos;
+import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -20,7 +21,6 @@ import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.NoResultException;
-import javax.validation.constraints.AssertTrue;
 import org.openxava.annotations.DefaultValueCalculator;
 import org.openxava.annotations.DescriptionsList;
 import org.openxava.annotations.Hidden;
@@ -39,12 +39,14 @@ import java.util.Date;
 import java.util.List;
 
 @Entity
-@Table(indexes = {
-    @Index(name = "idx_intento_candidato", columnList = "candidato_id")
+@Table(name = "intento_test", indexes = {
+    @Index(name = "idx_intento_candidato", columnList = "candidato_id"),
+    @Index(name = "idx_intento_test", columnList = "test_id"),
+    @Index(name = "idx_intento_estado", columnList = "estado")
 })
 @View(members =
     "DatosDeEvaluacion [ candidato, test ]; " +
-    "Tiempos [ fechaPrueba, ultimaModificacion, tiempoConsumido ]; " +
+    "Tiempos [ fechaPrueba, tiempoConsumido ]; " +
     "Resultados [ estado, puntuacionTotal, percentil ]; " +
     "AuditoriaPsicometrica [ cantidadAciertos, cantidadErrores, cantidadOmisiones ]; " +
     "respuestas"
@@ -58,8 +60,9 @@ public class IntentoTest {
     int id;
 
     @Hidden
+    @Column(length=10)
     @Enumerated(EnumType.STRING)
-    ModalidadTest modalidad = ModalidadTest.PAPEL;
+    ModalidadTest modalidad = ModalidadTest.DIGITAL;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @DescriptionsList(descriptionProperties="nombreCompleto")
@@ -76,10 +79,11 @@ public class IntentoTest {
     Date fechaPrueba;
 
     @Stereotype("DATETIME")
-    @ReadOnly
+    @Hidden
     Date ultimaModificacion;
 
-    @Required
+    @Required(message = "El tiempo consumido es obligatorio para evaluar la puntuación final.")
+    @Column(length=15)
     @Enumerated(EnumType.STRING)
     DuracionMinutos tiempoConsumido;
 
@@ -98,15 +102,9 @@ public class IntentoTest {
     @ReadOnly
     int percentil;
 
+    @Column(length=15)
     @Enumerated(EnumType.STRING)
     EstadoIntento estado = EstadoIntento.FINALIZADO;
-
-    @AssertTrue(message = "El intento ha sido invalidado: El tiempo consumido excede el límite configurado para el test.")
-    private boolean isTiempoValido() {
-        if (modalidad == ModalidadTest.PAPEL) return true;
-        if (tiempoConsumido == null || test == null) return true;
-        return (tiempoConsumido.getValor() * 60) <= test.getTiempoLimiteSegundos();
-    }
 
     @PrePersist
     @PreUpdate
@@ -118,6 +116,7 @@ public class IntentoTest {
     @ListProperties("numeroEjercicio, opcionElegida")
     List<RespuestaCandidato> respuestas = new ArrayList<>();
 
+    @SuppressWarnings("unused")
     public void agregarRespuesta(RespuestaCandidato respuesta) {
         if (this.estado == EstadoIntento.FINALIZADO) {
             throw new IllegalStateException("No se pueden agregar respuestas a un test finalizado.");

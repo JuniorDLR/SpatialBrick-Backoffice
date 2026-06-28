@@ -10,7 +10,9 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
-import javax.validation.ValidationException;
+import javax.persistence.Table;
+import javax.persistence.Index;
+import javax.persistence.Cacheable;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.Size;
@@ -24,10 +26,8 @@ import org.openxava.annotations.View;
 import org.openxava.annotations.Required;
 import org.openxava.calculators.TrueCalculator;
 import org.openxava.jpa.XPersistence;
-import org.openxava.web.editors.AttachedFile;
-import org.openxava.web.editors.FilePersistorFactory;
-import org.openxava.web.editors.IFilePersistor;
-import org.apache.tika.Tika;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.ArrayList;
@@ -35,6 +35,11 @@ import java.util.List;
 import java.math.BigDecimal;
 
 @Entity
+@Cacheable
+@Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+@Table(indexes = {
+    @Index(name = "idx_test_codigo", columnList = "codigoTest", unique = true)
+})
 @View(members=
     "Configuracion [ activo, tiempoMinutos, tiempoSegundos ]; " +
     "instrucciones; " +
@@ -62,7 +67,6 @@ public class TestLadrillosCubos {
         aplicarTiempoPorDefectoSiEsVacio();
         generarCodigoTest();
         ordenarYEnumerarEjercicios();
-        validarImagenesDeEjercicios();
     }
 
     private void aplicarTiempoPorDefectoSiEsVacio() {
@@ -97,43 +101,6 @@ public class TestLadrillosCubos {
         }
     }
 
-    private void validarImagenesDeEjercicios() {
-        if (this.ejercicios == null) return;
-
-        int numero = 1;
-        Tika tika = new Tika();
-        IFilePersistor persistor = FilePersistorFactory.getInstance();
-
-        for (EjercicioCubos ej : this.ejercicios) {
-            String fileId = ej.getImagenMonton();
-
-            if (fileId == null || fileId.trim().isEmpty()) {
-                throw new ValidationException(
-                    "Ejercicio #" + numero + ": Debe subir una imagen válida (JPG o PNG). " +
-                    "Si subió un archivo, verifique que sea una imagen real y no otro tipo de archivo."
-                );
-            }
-
-            try {
-                AttachedFile file = persistor.find(fileId);
-                byte[] imagen = file.getData();
-
-                String mimeType = tika.detect(imagen);
-                if (!mimeType.equals("image/jpeg") && !mimeType.equals("image/png")) {
-                    throw new ValidationException(
-                        "Ejercicio #" + numero + ": Alerta de Seguridad — El archivo subido fue detectado como '" + mimeType + "'. " +
-                        "Solo se permiten formatos JPG o PNG reales."
-                    );
-                }
-            } catch (ValidationException ve) {
-                throw ve; // Re-lanzar la excepción de validación sin envolverla
-            } catch (Exception e) {
-                throw new ValidationException("Ejercicio #" + numero + ": Error al leer el archivo. " + e.getMessage());
-            }
-            numero++;
-        }
-    }
-
     @Required(message = "Las instrucciones del test son obligatorias")
     @Stereotype("HTML_TEXT")
     @Column(columnDefinition="TEXT")
@@ -151,6 +118,7 @@ public class TestLadrillosCubos {
     int tiempoSegundos = SEGUNDOS_POR_DEFECTO;
 
     @Hidden
+    @SuppressWarnings("unused")
     public int getTiempoLimiteSegundos() {
         return (tiempoMinutos * 60) + tiempoSegundos;
     }
@@ -170,6 +138,7 @@ public class TestLadrillosCubos {
         return null;
     }
 
+    @SuppressWarnings("unused")
     public BigDecimal evaluarIntento(IntentoTest intento) {
         if (intento != null && intento.getEstado() == EstadoIntento.FINALIZADO) {
             return intento.getPuntuacionTotal();

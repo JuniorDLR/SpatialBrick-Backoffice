@@ -3,8 +3,12 @@ package ni.spatialBrick.SpatialBrick.modelo.configuracion;
 import javax.persistence.*;
 import org.openxava.annotations.*;
 import lombok.*;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 
 @Entity
+@Cacheable
+@Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
 @Table(name = "baremo_ladrillos_cubos", indexes = {
     @Index(name = "idx_baremo_puntuacion", columnList = "puntuacionMinima, puntuacionMaxima")
 })

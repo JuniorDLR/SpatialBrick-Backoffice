@@ -24,4 +24,13 @@ https://github.com/openxava/openxava/blob/master/openxavatest/src/main/resources
                 por-defecto="si-posible"/>
     </controlador>
 
+    <controlador nombre="TestLadrillosCubos">
+        <hereda-de controlador="Typical"/>
+        <accion nombre="save" modo="detail"
+                clase="ni.spatialBrick.SpatialBrick.acciones.GrabarTestAccion"
+                icono="content-save"
+                atajo-de-teclado="Control S"
+                por-defecto="si-posible"/>
+    </controlador>
+
 </controladores>

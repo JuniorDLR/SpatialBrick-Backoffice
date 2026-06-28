@@ -50,9 +50,11 @@ public class Candidato {
     @Required
     String nombreCompleto;
 
+    @Column(length=15)
     @Enumerated(EnumType.STRING)
     NivelEducativo nivelEducativo;
 
+    @Column(length=10)
     @Enumerated(EnumType.STRING)
     Genero genero;
 
@@ -71,6 +73,7 @@ public class Candidato {
     @Pattern(regexp = "^[0-9+ -]+$", message = "El teléfono solo puede contener números, espacios, guiones y el símbolo +")
     String telefono;
 
+    @Column(length=30)
     @Enumerated(EnumType.STRING)
     Puesto puestoAplica;
 
@@ -110,6 +113,7 @@ public class Candidato {
     }
 
     @Depends("fechaNacimiento")
+    @SuppressWarnings("unused")
     public int getEdadCalculada() {
         if (fechaNacimiento == null) return 0;
         return calcularEdad();
@@ -120,6 +124,7 @@ public class Candidato {
         return calcularEdad() >= EDAD_MINIMA_BFA;
     }
 
+    @SuppressWarnings("unused")
     public IntentoTest iniciarTest(TestLadrillosCubos test) {
         if (!isEdadValida()) {
             throw new IllegalStateException("El candidato no cumple la edad mínima para iniciar la prueba.");

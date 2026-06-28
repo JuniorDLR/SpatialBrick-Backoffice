@@ -15,6 +15,7 @@ public class RespuestaCandidato {
     int numeroEjercicio;
 
     @Required
+    @Column(length=10)
     @Enumerated(EnumType.STRING)
     OpcionRespuesta opcionElegida;
 

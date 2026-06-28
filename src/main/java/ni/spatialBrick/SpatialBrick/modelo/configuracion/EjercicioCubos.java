@@ -11,7 +11,6 @@ import org.openxava.annotations.Hidden;
 import org.openxava.annotations.Required;
 import lombok.Getter;
 import lombok.Setter;
-import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.Min;
 
 @Embeddable
@@ -27,6 +26,7 @@ public class EjercicioCubos {
     String imagenMonton;
 
     @Required(message = "Debe seleccionar cuál es la opción correcta")
+    @Column(length=10)
     @Enumerated(EnumType.STRING)
     OpcionRespuesta opcionCorrecta;
 
@@ -37,8 +37,4 @@ public class EjercicioCubos {
         return this.opcionCorrecta == opcionElegida;
     }
 
-    @AssertTrue(message = "La opción correcta no puede configurarse como 'OMITIDA'")
-    private boolean isOpcionValida() {
-        return this.opcionCorrecta != OpcionRespuesta.OMITIDA;
-    }
 }
