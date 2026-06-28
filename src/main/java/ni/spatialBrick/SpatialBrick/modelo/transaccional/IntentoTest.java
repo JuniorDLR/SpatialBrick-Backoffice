@@ -82,7 +82,6 @@ public class IntentoTest {
     @Hidden
     Date ultimaModificacion;
 
-    @Required(message = "El tiempo consumido es obligatorio para evaluar la puntuación final.")
     @Column(length=15)
     @Enumerated(EnumType.STRING)
     DuracionMinutos tiempoConsumido;
