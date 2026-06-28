@@ -87,11 +87,15 @@ public class Candidato {
     @ReadOnly
     Date fechaRegistro;
 
+    @ReadOnly
+    int edadCalculada;
+
     @PrePersist
     @PreUpdate
     void validarYPrepararGuardado() {
         asignarFechaRegistroSiEsNuevo();
         sanitizarDatos();
+        this.edadCalculada = calcularEdad();
         validarCamposEnumObligatorios();
         validarTelefonoInternacional();
         validarEdadMinima();
@@ -110,13 +114,6 @@ public class Candidato {
                 "pruebas psicométricas registradas en su historial. Elimine primero sus pruebas si desea proceder."
             );
         }
-    }
-
-    @Depends("fechaNacimiento")
-    @SuppressWarnings("unused")
-    public int getEdadCalculada() {
-        if (fechaNacimiento == null) return 0;
-        return calcularEdad();
     }
 
     public boolean isEdadValida() {
@@ -145,7 +142,7 @@ public class Candidato {
 
     private void sanitizarDatos() {
         if (this.identificacion != null) {
-            this.identificacion = this.identificacion.trim().toUpperCase();
+            this.identificacion = this.identificacion.replaceAll("[\\s-]", "").toUpperCase();
         }
         if (this.email != null) {
             this.email = this.email.trim().toLowerCase();
@@ -217,6 +214,7 @@ public class Candidato {
     private Long contarRegistros(String jpql, String paramNombre, Object paramValor) {
         return (Long) XPersistence.getManager()
             .createQuery(jpql)
+            .setFlushMode(FlushModeType.COMMIT)
             .setParameter(paramNombre, paramValor)
             .setParameter("id", this.id)
             .getSingleResult();

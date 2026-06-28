@@ -12,6 +12,7 @@ import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.Index;
+import javax.persistence.OrderColumn;
 import javax.persistence.Cacheable;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -125,6 +126,7 @@ public class TestLadrillosCubos {
 
     @Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
     @ElementCollection
+    @OrderColumn(name = "orden_ejercicio")
     @ListProperties("opcionCorrecta, valorAcierto, imagenMonton")
     List<EjercicioCubos> ejercicios = new ArrayList<>();
 

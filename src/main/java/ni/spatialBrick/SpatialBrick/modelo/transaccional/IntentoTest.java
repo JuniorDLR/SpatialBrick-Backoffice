@@ -29,6 +29,7 @@ import org.openxava.annotations.ReadOnly;
 import org.openxava.annotations.Required;
 import org.openxava.annotations.Stereotype;
 import org.openxava.annotations.View;
+import org.openxava.annotations.Tab;
 import org.openxava.calculators.CurrentTimestampCalculator;
 import org.openxava.jpa.XPersistence;
 import lombok.Getter;
@@ -51,6 +52,7 @@ import java.util.List;
     "AuditoriaPsicometrica [ cantidadAciertos, cantidadErrores, cantidadOmisiones ]; " +
     "respuestas"
 )
+@Tab(properties="candidato.nombreCompleto, test.codigoTest, puntuacionTotal, percentil, fechaPrueba, estado")
 @Getter @Setter
 public class IntentoTest {
 
@@ -112,6 +114,7 @@ public class IntentoTest {
     }
 
     @ElementCollection
+    @ReadOnly
     @ListProperties("numeroEjercicio, opcionElegida")
     List<RespuestaCandidato> respuestas = new ArrayList<>();
 
