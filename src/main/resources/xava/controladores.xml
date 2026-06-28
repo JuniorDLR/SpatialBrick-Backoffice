@@ -14,22 +14,14 @@ https://github.com/openxava/openxava/blob/master/openxavatest/src/main/resources
 -->
 
 <controladores>
-    
-    <!-- Variable de entorno: 
-    <var-entorno nombre="SpatialBrick_ANYO_DEFECTO" valor="2015"/>
-    -->
-    
-    <!-- Objeto de sesión:
-    <Objeto nombre="SpatialBrick_anyoActivo" clase="java.lang.Integer" valor="2015" 
-            ambito="global"/>
-    -->
-    
-    <!-- Controlador:
-    <controlador nombre="Profesor">
+
+    <controlador nombre="IntentoTest">
         <hereda-de controlador="Typical"/>
-        <accion nombre="new" icono="plus-box-multiple" atajo-de-teclado="Control N" 
-                clase="acciones.CrearProfesor"/>        
+        <accion nombre="save" modo="detail"
+                clase="ni.spatialBrick.SpatialBrick.acciones.GrabarIntentoAccion"
+                icono="content-save"
+                atajo-de-teclado="Control S"
+                por-defecto="si-posible"/>
     </controlador>
-    -->
-    
+
 </controladores>

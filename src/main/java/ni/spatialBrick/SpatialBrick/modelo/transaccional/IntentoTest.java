@@ -1,25 +1,53 @@
 package ni.spatialBrick.SpatialBrick.modelo.transaccional;
 
-import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.*;
-import ni.spatialBrick.SpatialBrick.modelo.configuracion.*;
-
-import javax.persistence.*;
-import org.openxava.annotations.*;
-import lombok.*;
+import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.EstadoIntento;
+import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.DuracionMinutos;
+import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.ModalidadTest;
+import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.OpcionRespuesta;
+import ni.spatialBrick.SpatialBrick.modelo.configuracion.EjercicioCubos;
+import ni.spatialBrick.SpatialBrick.modelo.configuracion.TestLadrillosCubos;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Index;
+import javax.persistence.ManyToOne;
+import javax.persistence.PrePersist;
+import javax.persistence.PreUpdate;
+import javax.persistence.Table;
+import javax.persistence.NoResultException;
+import javax.validation.constraints.AssertTrue;
+import org.openxava.annotations.DefaultValueCalculator;
+import org.openxava.annotations.DescriptionsList;
+import org.openxava.annotations.Hidden;
+import org.openxava.annotations.ListProperties;
+import org.openxava.annotations.ReadOnly;
+import org.openxava.annotations.Required;
+import org.openxava.annotations.Stereotype;
+import org.openxava.annotations.View;
+import org.openxava.calculators.CurrentTimestampCalculator;
+import org.openxava.jpa.XPersistence;
+import lombok.Getter;
+import lombok.Setter;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.Collection;
-import javax.validation.constraints.*;
+import java.util.List;
 
 @Entity
 @Table(indexes = {
     @Index(name = "idx_intento_candidato", columnList = "candidato_id")
 })
 @View(members =
-    "DatosDeEvaluacion [ candidato, test, modalidad ]; " +
-    "Tiempos [ fechaPrueba, tiempoConsumido ]; " +
+    "DatosDeEvaluacion [ candidato, test ]; " +
+    "Tiempos [ fechaPrueba, ultimaModificacion, tiempoConsumido ]; " +
     "Resultados [ estado, puntuacionTotal, percentil ]; " +
-    "AuditoriaPsicometrica [ cantidadAciertos, cantidadErrores, cantidadOmisiones ]"
+    "AuditoriaPsicometrica [ cantidadAciertos, cantidadErrores, cantidadOmisiones ]; " +
+    "respuestas"
 )
 @Getter @Setter
 public class IntentoTest {
@@ -43,13 +71,19 @@ public class IntentoTest {
     @Required
     TestLadrillosCubos test;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    @DefaultValueCalculator(org.openxava.calculators.CurrentDateCalculator.class)
+    @Stereotype("DATETIME")
+    @DefaultValueCalculator(CurrentTimestampCalculator.class)
     Date fechaPrueba;
 
+    @Stereotype("DATETIME")
+    @ReadOnly
+    Date ultimaModificacion;
+
+    @Required
     @Enumerated(EnumType.STRING)
     DuracionMinutos tiempoConsumido;
 
+    @ReadOnly
     BigDecimal puntuacionTotal;
 
     @ReadOnly
@@ -74,9 +108,15 @@ public class IntentoTest {
         return (tiempoConsumido.getValor() * 60) <= test.getTiempoLimiteSegundos();
     }
 
+    @PrePersist
+    @PreUpdate
+    private void actualizarFechas() {
+        this.ultimaModificacion = new Date();
+    }
+
     @ElementCollection
     @ListProperties("numeroEjercicio, opcionElegida")
-    Collection<RespuestaCandidato> respuestas = new java.util.ArrayList<>();
+    List<RespuestaCandidato> respuestas = new ArrayList<>();
 
     public void agregarRespuesta(RespuestaCandidato respuesta) {
         if (this.estado == EstadoIntento.FINALIZADO) {
@@ -85,15 +125,25 @@ public class IntentoTest {
         this.respuestas.add(respuesta);
     }
 
-    public void finalizarTest() {
-        if (this.estado == EstadoIntento.FINALIZADO) {
-            throw new IllegalStateException("El test ya se encuentra finalizado.");
+    public void calcularPuntuacionFinal() {
+        if (this.estado != EstadoIntento.FINALIZADO) {
+            reiniciarResultados();
+            return;
         }
-        this.estado = EstadoIntento.FINALIZADO;
-        calcularPuntuacionFinal();
+
+        contarYCalificarRespuestas();
+        this.percentil = consultarPercentil(this.cantidadAciertos);
     }
 
-    private void calcularPuntuacionFinal() {
+    private void reiniciarResultados() {
+        this.puntuacionTotal = BigDecimal.ZERO;
+        this.cantidadAciertos = 0;
+        this.cantidadErrores = 0;
+        this.cantidadOmisiones = 0;
+        this.percentil = 0;
+    }
+
+    private void contarYCalificarRespuestas() {
         BigDecimal puntaje = BigDecimal.ZERO;
         int aciertos = 0;
         int errores = 0;
@@ -105,7 +155,7 @@ public class IntentoTest {
                     omisiones++;
                     continue;
                 }
-                
+
                 EjercicioCubos ejercicio = this.test.obtenerEjercicio(respuesta.getNumeroEjercicio());
                 if (respuesta.esAcertada(ejercicio)) {
                     puntaje = puntaje.add(new BigDecimal(ejercicio.getValorAcierto()));
@@ -115,9 +165,26 @@ public class IntentoTest {
                 }
             }
         }
+
         this.puntuacionTotal = puntaje;
         this.cantidadAciertos = aciertos;
         this.cantidadErrores = errores;
         this.cantidadOmisiones = omisiones;
+    }
+
+    private int consultarPercentil(int aciertos) {
+        try {
+            Integer resultado = (Integer) XPersistence.getManager()
+                .createQuery(
+                    "select b.percentil from BaremoLadrillosCubos b " +
+                    "where :aciertos between b.puntuacionMinima and b.puntuacionMaxima"
+                )
+                .setParameter("aciertos", aciertos)
+                .setMaxResults(1)
+                .getSingleResult();
+            return (resultado != null) ? resultado : 0;
+        } catch (NoResultException e) {
+            return 0;
+        }
     }
 }
