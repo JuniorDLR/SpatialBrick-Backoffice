@@ -247,23 +247,36 @@ public class RestApiServlet extends HttpServlet {
             intento.setMinutosConsumidos(request.getMinutosConsumidos());
             intento.setSegundosConsumidos(request.getSegundosConsumidos());
 
-            // Inyectar las respuestas
-            if (request.getRespuestas() != null) {
+            // Inyectar las respuestas (en orden estricto y asignando el ejercicio)
+            if (request.getRespuestas() != null && intento.getTest() != null && intento.getTest().getEjercicios() != null) {
+                List<EjercicioCubos> ejercicios = intento.getTest().getEjercicios();
+                int numEjercicios = ejercicios.size();
+                List<RespuestaCandidato> ordenadas = new ArrayList<>();
+                
+                for (EjercicioCubos ej : ejercicios) {
+                    RespuestaCandidato r = new RespuestaCandidato();
+                    r.setEjercicio(ej);
+                    r.setOpcionElegida(ni.spatialBrick.SpatialBrick.modelo.enumeraciones.OpcionRespuesta.OMITIDA);
+                    ordenadas.add(r);
+                }
+
                 for (RespuestaDTO resDto : request.getRespuestas()) {
-                    RespuestaCandidato respuesta = new RespuestaCandidato();
-                    respuesta.setNumeroEjercicio(resDto.getNumeroEjercicio());
-                    respuesta.setOpcionElegida(resDto.getOpcionElegida());
-                    intento.agregarRespuesta(respuesta);
+                    int num = resDto.getNumeroEjercicio();
+                    if (num >= 1 && num <= numEjercicios) {
+                        ordenadas.get(num - 1).setOpcionElegida(resDto.getOpcionElegida());
+                    }
+                }
+
+                for (RespuestaCandidato r : ordenadas) {
+                    intento.agregarRespuesta(r);
                 }
             }
 
-            // Cambiar estado y calificar
             intento.setEstado(EstadoIntento.FINALIZADO);
             intento.calcularPuntuacionFinal();
 
             em.merge(intento);
 
-            // Preparar respuesta para el frontend
             ResultadosResponseDTO response = mapearResultadosADto(intento);
 
             enviarJson(resp, response);
@@ -286,9 +299,10 @@ public class RestApiServlet extends HttpServlet {
 
         List<EjercicioDTO> ejerciciosDTO = new ArrayList<>();
         if (test.getEjercicios() != null) {
+            int contador = 1;
             for (EjercicioCubos ej : test.getEjercicios()) {
                 EjercicioDTO dto = new EjercicioDTO();
-                dto.setNumeroEjercicio(ej.getNumeroEjercicio());
+                dto.setNumeroEjercicio(contador++);
                 dto.setImagenUrl("/rest/test/imagen/" + ej.getImagenMonton());
                 ejerciciosDTO.add(dto);
             }

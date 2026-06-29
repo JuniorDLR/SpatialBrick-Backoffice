@@ -22,8 +22,11 @@ import javax.persistence.Table;
 import javax.persistence.NoResultException;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.persistence.OrderColumn;
+import org.openxava.validators.ValidationException;
 
 import org.openxava.annotations.DefaultValueCalculator;
+import org.openxava.annotations.OnChange;
 import org.openxava.annotations.DescriptionsList;
 import org.openxava.annotations.Hidden;
 import org.openxava.annotations.ListProperties;
@@ -32,6 +35,7 @@ import org.openxava.annotations.Required;
 import org.openxava.annotations.Stereotype;
 import org.openxava.annotations.View;
 import org.openxava.annotations.Tab;
+import org.openxava.annotations.EditOnly;
 import org.openxava.calculators.CurrentTimestampCalculator;
 import org.openxava.jpa.XPersistence;
 import lombok.Getter;
@@ -75,6 +79,7 @@ public class IntentoTest {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @DescriptionsList(descriptionProperties="codigoTest")
+    @OnChange(ni.spatialBrick.SpatialBrick.acciones.CargarRespuestasDeTestAccion.class)
     @Required
     TestLadrillosCubos test;
 
@@ -121,7 +126,7 @@ public class IntentoTest {
             int tiempoLimite = this.test.getTiempoLimiteSegundos();
             int tiempoUsado = (this.minutosConsumidos * 60) + this.segundosConsumidos;
             if (tiempoUsado > tiempoLimite) {
-                throw new org.openxava.validators.ValidationException(
+                throw new ValidationException(
                     "El tiempo consumido no puede ser mayor al tiempo límite del test (" + 
                     this.test.getTiempoMinutos() + " min " + this.test.getTiempoSegundos() + " seg)."
                 );
@@ -130,13 +135,15 @@ public class IntentoTest {
 
         if (this.estado == EstadoIntento.FINALIZADO) {
             if (this.respuestas == null || this.respuestas.isEmpty()) {
-                throw new org.openxava.validators.ValidationException("No se puede guardar un intento FINALIZADO si no tiene respuestas ingresadas.");
+                throw new ValidationException("No se puede guardar un intento FINALIZADO si no tiene respuestas ingresadas.");
             }
         }
     }
 
     @ElementCollection
-    @ListProperties("numeroEjercicio, opcionElegida")
+    @ListProperties("ejercicio.imagenMonton, opcionElegida")
+    @EditOnly
+    @OrderColumn(name = "orden")
     List<RespuestaCandidato> respuestas = new ArrayList<>();
 
     @SuppressWarnings("unused")
@@ -171,18 +178,18 @@ public class IntentoTest {
         int errores = 0;
         int omisiones = 0;
 
-        if (this.respuestas != null && this.test != null) {
+        if (this.respuestas != null) {
             for (RespuestaCandidato respuesta : this.respuestas) {
                 if (respuesta.getOpcionElegida() == OpcionRespuesta.OMITIDA) {
                     omisiones++;
                     continue;
                 }
 
-                EjercicioCubos ejercicio = this.test.obtenerEjercicio(respuesta.getNumeroEjercicio());
-                if (respuesta.esAcertada(ejercicio)) {
+                EjercicioCubos ejercicio = respuesta.getEjercicio();
+                if (ejercicio != null && ejercicio.verificarRespuesta(respuesta.getOpcionElegida())) {
                     puntaje = puntaje.add(new BigDecimal(ejercicio.getValorAcierto()));
                     aciertos++;
-                } else {
+                } else if (ejercicio != null) {
                     errores++;
                 }
             }

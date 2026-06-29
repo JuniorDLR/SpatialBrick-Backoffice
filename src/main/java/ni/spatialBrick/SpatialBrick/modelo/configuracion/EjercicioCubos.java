@@ -12,7 +12,6 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import org.openxava.annotations.File;
 import org.openxava.annotations.Hidden;
-import org.openxava.annotations.ReadOnly;
 import org.openxava.annotations.Required;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,8 +21,8 @@ import org.openxava.annotations.View;
 import org.openxava.annotations.Tab;
 
 @Entity
-@View(members = "numeroEjercicio; imagenMonton; opcionCorrecta, valorAcierto")
-@Tab(properties = "numeroEjercicio, imagenMonton, opcionCorrecta, valorAcierto")
+@View(members = "imagenMonton; opcionCorrecta, valorAcierto")
+@Tab(properties = "imagenMonton, opcionCorrecta, valorAcierto")
 @Getter @Setter
 public class EjercicioCubos {
 
@@ -34,9 +33,6 @@ public class EjercicioCubos {
 
     @ManyToOne
     TestLadrillosCubos test;
-
-    @ReadOnly
-    Integer numeroEjercicio;
 
     @Required(message = "Debe subir la imagen para este ejercicio")
     @File(acceptFileTypes=".png, .jpg, .jpeg, image/png, image/jpeg")

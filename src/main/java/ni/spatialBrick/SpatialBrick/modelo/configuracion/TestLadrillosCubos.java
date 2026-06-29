@@ -12,7 +12,7 @@ import javax.persistence.PreUpdate;
 import javax.persistence.PreRemove;
 import javax.persistence.Table;
 import javax.persistence.Index;
-import javax.persistence.OrderBy;
+import javax.persistence.OrderColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.Cacheable;
 import javax.validation.constraints.Max;
@@ -68,7 +68,6 @@ public class TestLadrillosCubos {
     private void alGuardar() {
         aplicarTiempoPorDefectoSiEsVacio();
         generarCodigoTest();
-        ordenarYEnumerarEjercicios();
     }
 
     @PreRemove
@@ -100,15 +99,6 @@ public class TestLadrillosCubos {
         return (maxId == null ? 0 : maxId) + 1;
     }
 
-    private void ordenarYEnumerarEjercicios() {
-        if (this.ejercicios != null) {
-            int contador = 1;
-            for (EjercicioCubos ej : this.ejercicios) {
-                ej.setNumeroEjercicio(contador++);
-            }
-        }
-    }
-
     @Required(message = "Las instrucciones del test son obligatorias")
     @Stereotype("HTML_TEXT")
     @Column(columnDefinition="TEXT")
@@ -133,19 +123,9 @@ public class TestLadrillosCubos {
 
     @Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
     @OneToMany(mappedBy="test", cascade=javax.persistence.CascadeType.MERGE)
-    @OrderBy("numeroEjercicio ASC")
-    @ListProperties("numeroEjercicio, opcionCorrecta, valorAcierto, imagenMonton")
+    @OrderColumn(name = "orden_ejercicio")
+    @ListProperties("opcionCorrecta, valorAcierto, imagenMonton")
     List<EjercicioCubos> ejercicios = new ArrayList<>();
-
-    public EjercicioCubos obtenerEjercicio(int numero) {
-        if (this.ejercicios == null) return null;
-        for (EjercicioCubos ej : this.ejercicios) {
-            if (ej.getNumeroEjercicio() != null && ej.getNumeroEjercicio() == numero) {
-                return ej;
-            }
-        }
-        return null;
-    }
 
     @SuppressWarnings("unused")
     public BigDecimal evaluarIntento(IntentoTest intento) {
