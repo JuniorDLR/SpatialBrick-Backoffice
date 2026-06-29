@@ -132,15 +132,15 @@ public class TestLadrillosCubos {
     }
 
     @Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
-    @OneToMany(mappedBy="test")
+    @OneToMany(mappedBy="test", cascade=javax.persistence.CascadeType.MERGE)
     @OrderBy("numeroEjercicio ASC")
-    @ListProperties("opcionCorrecta, valorAcierto, imagenMonton")
+    @ListProperties("numeroEjercicio, opcionCorrecta, valorAcierto, imagenMonton")
     List<EjercicioCubos> ejercicios = new ArrayList<>();
 
     public EjercicioCubos obtenerEjercicio(int numero) {
         if (this.ejercicios == null) return null;
         for (EjercicioCubos ej : this.ejercicios) {
-            if (ej.getNumeroEjercicio() == numero) {
+            if (ej.getNumeroEjercicio() != null && ej.getNumeroEjercicio() == numero) {
                 return ej;
             }
         }
