@@ -35,7 +35,7 @@
 	<!-- PostgreSQL -->
 	<Resource name="jdbc/SpatialBrickDS" auth="Container" type="javax.sql.DataSource"
 	      maxTotal="20" maxIdle="5" maxWaitMillis="10000"
-	      username="postgres" password="qwerty1234"
+	      username="postgres" password="C19.503236a%"
 	      driverClassName="org.postgresql.Driver"
 	      url="jdbc:postgresql://localhost:5432/spatialbrick"/>
 	

@@ -113,9 +113,10 @@ public class IntentoTest {
     @ReadOnly
     int percentil;
 
+    @Required(message = "El estado del intento es obligatorio (EN_PROGRESO o FINALIZADO)")
     @Column(length=15)
     @Enumerated(EnumType.STRING)
-    EstadoIntento estado = EstadoIntento.FINALIZADO;
+    EstadoIntento estado = EstadoIntento.EN_PROGRESO;
 
     @PrePersist
     @PreUpdate

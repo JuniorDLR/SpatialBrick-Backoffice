@@ -15,14 +15,13 @@ import org.openxava.annotations.Hidden;
 import org.openxava.annotations.Required;
 import lombok.Getter;
 import lombok.Setter;
-import javax.validation.constraints.Min;
 
 import org.openxava.annotations.View;
 import org.openxava.annotations.Tab;
 
 @Entity
-@View(members = "imagenMonton; opcionCorrecta, valorAcierto")
-@Tab(properties = "imagenMonton, opcionCorrecta, valorAcierto")
+@View(members = "imagenMonton; opcionCorrecta")
+@Tab(properties = "imagenMonton, opcionCorrecta")
 @Getter @Setter
 public class EjercicioCubos {
 
@@ -44,12 +43,13 @@ public class EjercicioCubos {
     @Enumerated(EnumType.STRING)
     OpcionRespuesta opcionCorrecta;
 
-    @Required(message = "El valor del acierto es obligatorio")
-    @Min(value = 1, message = "El valor del acierto debe ser mayor a 0")
-    Integer valorAcierto;
+
+    @Hidden
+    int valorAcierto = 1;
 
     public boolean verificarRespuesta(OpcionRespuesta opcionElegida) {
         return this.opcionCorrecta == opcionElegida;
     }
 
 }
+
