@@ -162,7 +162,16 @@ public class IntentoTest {
         }
 
         contarYCalificarRespuestas();
-        this.percentil = consultarPercentil(this.cantidadAciertos);
+
+        int totalEjercicios = (this.test != null && this.test.getEjercicios() != null)
+                ? this.test.getEjercicios().size()
+                : 0;
+        int puntajeReal = (totalEjercicios > 0)
+                ? (int) Math.round((this.cantidadAciertos * 27.0) / totalEjercicios)
+                : 0;
+
+        this.puntuacionTotal = new BigDecimal(puntajeReal);
+        this.percentil = consultarPercentil(puntajeReal);
     }
 
     private void reiniciarResultados() {
@@ -174,7 +183,6 @@ public class IntentoTest {
     }
 
     private void contarYCalificarRespuestas() {
-        BigDecimal puntaje = BigDecimal.ZERO;
         int aciertos = 0;
         int errores = 0;
         int omisiones = 0;
@@ -188,7 +196,6 @@ public class IntentoTest {
 
                 EjercicioCubos ejercicio = respuesta.getEjercicio();
                 if (ejercicio != null && ejercicio.verificarRespuesta(respuesta.getOpcionElegida())) {
-                    puntaje = puntaje.add(new BigDecimal(ejercicio.getValorAcierto()));
                     aciertos++;
                 } else if (ejercicio != null) {
                     errores++;
@@ -196,7 +203,7 @@ public class IntentoTest {
             }
         }
 
-        this.puntuacionTotal = puntaje;
+        // puntuacionTotal se asigna en calcularPuntuacionFinal() tras aplicar la fórmula
         this.cantidadAciertos = aciertos;
         this.cantidadErrores = errores;
         this.cantidadOmisiones = omisiones;

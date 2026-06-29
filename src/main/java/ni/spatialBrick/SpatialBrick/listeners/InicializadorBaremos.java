@@ -10,7 +10,7 @@ import ni.spatialBrick.SpatialBrick.modelo.configuracion.BaremoLadrillosCubos;
 @WebListener
 public class InicializadorBaremos implements ServletContextListener {
 
-    private static final int PUNTUACION_MAXIMA_POSIBLE = 100;
+    private static final int PUNTUACION_MAXIMA_POSIBLE = 27;
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
@@ -44,18 +44,18 @@ public class InicializadorBaremos implements ServletContextListener {
         insertarBaremo(em, 90, 24, 24);
         insertarBaremo(em, 85, 22, 23);
         insertarBaremo(em, 80, 20, 21);
-        insertarBaremo(em, 75, 18, 19);
-        insertarBaremo(em, 70, 17, 17);
-        insertarBaremo(em, 60, 16, 16);
-        insertarBaremo(em, 50, 14, 15);
-        insertarBaremo(em, 40, 13, 13);
-        insertarBaremo(em, 30, 12, 12);
-        insertarBaremo(em, 25, 11, 11);
-        insertarBaremo(em, 20, 10, 10);
-        insertarBaremo(em, 15, 9, 9);
-        insertarBaremo(em, 10, 8, 8);
-        insertarBaremo(em, 5, 7, 7);
-        insertarBaremo(em, 1, 0, 6);
+        insertarBaremo(em, 75, 19, 19);
+        insertarBaremo(em, 70, 18, 18);
+        insertarBaremo(em, 60, 17, 17);
+        insertarBaremo(em, 55, 16, 16);
+        insertarBaremo(em, 50, 15, 15);
+        insertarBaremo(em, 40, 14, 14);
+        insertarBaremo(em, 30, 13, 13);
+        insertarBaremo(em, 25, 12, 12);
+        insertarBaremo(em, 15, 10, 10);
+        insertarBaremo(em, 10, 9, 9);
+        insertarBaremo(em, 5, 8, 8);
+        insertarBaremo(em, 1, 0, 7);
     }
 
     private void insertarBaremo(EntityManager em, int percentil, int min, int max) {
