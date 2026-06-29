@@ -12,7 +12,7 @@ import lombok.*;
 public class RespuestaCandidato {
 
     @Required
-    int numeroEjercicio;
+    Integer numeroEjercicio;
 
     @Required
     @Column(length=10)

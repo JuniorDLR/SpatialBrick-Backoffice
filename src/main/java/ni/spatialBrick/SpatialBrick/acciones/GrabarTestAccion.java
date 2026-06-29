@@ -35,6 +35,17 @@ public class GrabarTestAccion extends SaveAction {
 
         for (Map<String, Object> row : ejercicios) {
             String fileId = (String) row.get("imagenMonton");
+            Object opcion = row.get("opcionCorrecta");
+            Object valor = row.get("valorAcierto");
+
+            // Si la fila está completamente vacía (como la fila extra del final de la tabla), la ignoramos
+            boolean filaVacia = (fileId == null || fileId.trim().isEmpty()) &&
+                                (opcion == null || opcion.toString().trim().isEmpty()) &&
+                                valor == null;
+
+            if (filaVacia) {
+                continue;
+            }
 
             if (fileId == null || fileId.trim().isEmpty()) {
                 addError("Ejercicio #" + numero + ": Debe subir una imagen válida (JPG o PNG). Si subió un archivo, verifique que sea una imagen real y no otro tipo de archivo.");
@@ -52,7 +63,7 @@ public class GrabarTestAccion extends SaveAction {
                 String mimeType = tika.detect(imagen);
                 
                 if (!mimeType.equals("image/jpeg") && !mimeType.equals("image/png")) {
-                    addError("Ejercicio #" + numero + ": Alerta de Seguridad — El archivo subido fue detectado como '" + mimeType + "'. Solo se permiten formatos JPG o PNG reales.");
+                    addError("Ejercicio #" + numero + ": Alerta de Seguridad 501 — El archivo subido fue detectado como '" + mimeType + "'. Solo se permiten formatos JPG o PNG reales.");
                     return false;
                 }
             } catch (Exception e) {

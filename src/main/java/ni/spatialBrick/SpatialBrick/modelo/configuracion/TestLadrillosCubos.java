@@ -3,16 +3,17 @@ package ni.spatialBrick.SpatialBrick.modelo.configuracion;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.EstadoIntento;
 import ni.spatialBrick.SpatialBrick.modelo.transaccional.IntentoTest;
 import javax.persistence.Column;
-import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
+import javax.persistence.PreRemove;
 import javax.persistence.Table;
 import javax.persistence.Index;
-import javax.persistence.OrderColumn;
+import javax.persistence.OrderBy;
+import javax.persistence.OneToMany;
 import javax.persistence.Cacheable;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -70,10 +71,16 @@ public class TestLadrillosCubos {
         ordenarYEnumerarEjercicios();
     }
 
+    @PreRemove
+    private void alBorrar() {
+        if (this.ejercicios != null) {
+            for (EjercicioCubos ej : this.ejercicios) {
+                ej.setTest(null);
+            }
+        }
+    }
+
     private void aplicarTiempoPorDefectoSiEsVacio() {
-        // En OpenXava, si el usuario deja los campos numéricos vacíos, llegan como 0.
-        // Si ambos son 0 (vacíos), aplicamos la regla por defecto.
-        // Si hay números negativos, los ignoramos aquí para que la validación @Min haga su trabajo y lance el error.
         if (this.tiempoMinutos == 0 && this.tiempoSegundos == 0) {
             this.tiempoMinutos = MINUTOS_POR_DEFECTO;
             this.tiempoSegundos = SEGUNDOS_POR_DEFECTO;
@@ -125,8 +132,8 @@ public class TestLadrillosCubos {
     }
 
     @Size(min = 1, message = "Debe agregar al menos un ejercicio (ladrillo) al test")
-    @ElementCollection
-    @OrderColumn(name = "orden_ejercicio")
+    @OneToMany(mappedBy="test")
+    @OrderBy("numeroEjercicio ASC")
     @ListProperties("opcionCorrecta, valorAcierto, imagenMonton")
     List<EjercicioCubos> ejercicios = new ArrayList<>();
 
