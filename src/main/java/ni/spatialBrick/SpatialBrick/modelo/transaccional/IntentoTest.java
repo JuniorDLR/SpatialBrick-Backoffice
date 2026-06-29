@@ -109,12 +109,16 @@ public class IntentoTest {
 
     @PrePersist
     @PreUpdate
-    private void actualizarFechas() {
+    private void validarYActualizarFechas() {
         this.ultimaModificacion = new Date();
+        if (this.estado == EstadoIntento.FINALIZADO) {
+            if (this.respuestas == null || this.respuestas.isEmpty()) {
+                throw new org.openxava.validators.ValidationException("No se puede guardar un intento FINALIZADO si no tiene respuestas ingresadas.");
+            }
+        }
     }
 
     @ElementCollection
-    @ReadOnly
     @ListProperties("numeroEjercicio, opcionElegida")
     List<RespuestaCandidato> respuestas = new ArrayList<>();
 
