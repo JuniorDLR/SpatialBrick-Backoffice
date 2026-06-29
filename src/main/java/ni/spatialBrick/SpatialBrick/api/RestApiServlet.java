@@ -185,35 +185,37 @@ public class RestApiServlet extends HttpServlet {
 
         List<CandidatoTestStatusDTO> tests = new ArrayList<>();
         
-        // Verificamos el BFA
         try {
-            TestLadrillosCubos testBfa = (TestLadrillosCubos) em.createQuery(
-                    "select t from TestLadrillosCubos t where t.codigoTest = 'BFA'")
-                    .getSingleResult();
+            // Obtener todos los tests de la BD
+            List<TestLadrillosCubos> testsDB = em.createQuery(
+                    "select t from TestLadrillosCubos t", TestLadrillosCubos.class)
+                    .getResultList();
             
-            CandidatoTestStatusDTO dto = new CandidatoTestStatusDTO();
-            dto.setCodigoTest(testBfa.getCodigoTest());
-            dto.setNombreTest("Batería de Funciones Aptitudinales");
-            
-            if (!testBfa.isActivo()) {
-                dto.setEstado("INACTIVO");
-            } else {
-                // Verificar si ya tiene un intento completado
-                Long terminados = (Long) em.createQuery("select count(i) from IntentoTest i where i.candidato.id = :candidatoId and i.test.id = :testId and i.estado = :estado")
-                    .setParameter("candidatoId", candidato.getId())
-                    .setParameter("testId", testBfa.getId())
-                    .setParameter("estado", EstadoIntento.FINALIZADO)
-                    .getSingleResult();
+            for (TestLadrillosCubos testDB : testsDB) {
+                CandidatoTestStatusDTO dto = new CandidatoTestStatusDTO();
+                dto.setCodigoTest(testDB.getCodigoTest());
+                dto.setNombreTest("Bater\u00EDa Factorial de Aptitudes (" + testDB.getCodigoTest() + ")");
                 
-                if (terminados > 0) {
-                    dto.setEstado("COMPLETADO");
+                if (!testDB.isActivo()) {
+                    dto.setEstado("INACTIVO");
                 } else {
-                    dto.setEstado("DISPONIBLE");
+                    // Verificar si ya tiene un intento completado
+                    Long terminados = (Long) em.createQuery("select count(i) from IntentoTest i where i.candidato.id = :candidatoId and i.test.id = :testId and i.estado = :estado")
+                        .setParameter("candidatoId", candidato.getId())
+                        .setParameter("testId", testDB.getId())
+                        .setParameter("estado", EstadoIntento.FINALIZADO)
+                        .getSingleResult();
+                    
+                    if (terminados > 0) {
+                        dto.setEstado("COMPLETADO");
+                    } else {
+                        dto.setEstado("DISPONIBLE");
+                    }
                 }
+                tests.add(dto);
             }
-            tests.add(dto);
-        } catch (NoResultException e) {
-            // El test BFA no está en la base de datos
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         
         enviarJson(resp, tests);
