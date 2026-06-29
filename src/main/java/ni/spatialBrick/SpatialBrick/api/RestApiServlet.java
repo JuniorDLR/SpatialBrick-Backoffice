@@ -244,7 +244,8 @@ public class RestApiServlet extends HttpServlet {
             }
 
             // Inyectar el tiempo
-            intento.setTiempoConsumido(request.getTiempoConsumido());
+            intento.setMinutosConsumidos(request.getMinutosConsumidos());
+            intento.setSegundosConsumidos(request.getSegundosConsumidos());
 
             // Inyectar las respuestas
             if (request.getRespuestas() != null) {

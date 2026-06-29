@@ -1,7 +1,6 @@
 package ni.spatialBrick.SpatialBrick.modelo.transaccional;
 
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.EstadoIntento;
-import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.DuracionMinutos;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.ModalidadTest;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.OpcionRespuesta;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.EjercicioCubos;
@@ -21,6 +20,9 @@ import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 import javax.persistence.NoResultException;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+
 import org.openxava.annotations.DefaultValueCalculator;
 import org.openxava.annotations.DescriptionsList;
 import org.openxava.annotations.Hidden;
@@ -47,7 +49,7 @@ import java.util.List;
 })
 @View(members =
     "DatosDeEvaluacion [ candidato, test ]; " +
-    "Tiempos [ fechaPrueba, tiempoConsumido ]; " +
+    "Tiempos [ fechaPrueba, minutosConsumidos, segundosConsumidos ]; " +
     "Resultados [ estado, puntuacionTotal, percentil ]; " +
     "AuditoriaPsicometrica [ cantidadAciertos, cantidadErrores, cantidadOmisiones ]; " +
     "respuestas"
@@ -84,9 +86,12 @@ public class IntentoTest {
     @Hidden
     Date ultimaModificacion;
 
-    @Column(length=15)
-    @Enumerated(EnumType.STRING)
-    DuracionMinutos tiempoConsumido;
+    @Min(value = 0, message = "Los minutos no pueden ser negativos")
+    int minutosConsumidos = 0;
+
+    @Min(value = 0, message = "Los segundos no pueden ser negativos")
+    @Max(value = 59, message = "Los segundos no pueden pasar de 59")
+    int segundosConsumidos = 0;
 
     @ReadOnly
     BigDecimal puntuacionTotal;
@@ -111,6 +116,18 @@ public class IntentoTest {
     @PreUpdate
     private void validarYActualizarFechas() {
         this.ultimaModificacion = new Date();
+        
+        if (this.test != null) {
+            int tiempoLimite = this.test.getTiempoLimiteSegundos();
+            int tiempoUsado = (this.minutosConsumidos * 60) + this.segundosConsumidos;
+            if (tiempoUsado > tiempoLimite) {
+                throw new org.openxava.validators.ValidationException(
+                    "El tiempo consumido no puede ser mayor al tiempo límite del test (" + 
+                    this.test.getTiempoMinutos() + " min " + this.test.getTiempoSegundos() + " seg)."
+                );
+            }
+        }
+
         if (this.estado == EstadoIntento.FINALIZADO) {
             if (this.respuestas == null || this.respuestas.isEmpty()) {
                 throw new org.openxava.validators.ValidationException("No se puede guardar un intento FINALIZADO si no tiene respuestas ingresadas.");
