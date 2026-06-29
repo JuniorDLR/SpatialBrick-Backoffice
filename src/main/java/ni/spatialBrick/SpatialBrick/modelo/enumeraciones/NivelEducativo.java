@@ -3,7 +3,10 @@ package ni.spatialBrick.SpatialBrick.modelo.enumeraciones;
 public enum NivelEducativo {
     PRIMARIA,
     SECUNDARIA,
+    BACHILLERATO,
     TECNICO,
-    UNIVERSITARIO,
-    POSTGRADO
+    LICENCIATURA,
+    MAESTRIA,
+    DOCTORADO,
+    OTRO
 }

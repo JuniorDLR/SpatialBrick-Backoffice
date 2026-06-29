@@ -2,7 +2,14 @@ package ni.spatialBrick.SpatialBrick.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import ni.spatialBrick.SpatialBrick.api.dto.*;
+import ni.spatialBrick.SpatialBrick.api.dto.CandidatoRequestDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.CandidatoResponseDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.CandidatoTestStatusDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.EjercicioDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.RespuestaDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.ResultadosRequestDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.ResultadosResponseDTO;
+import ni.spatialBrick.SpatialBrick.api.dto.TestResponseDTO;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.EjercicioCubos;
 import ni.spatialBrick.SpatialBrick.modelo.configuracion.TestLadrillosCubos;
 import ni.spatialBrick.SpatialBrick.modelo.enumeraciones.EstadoIntento;
@@ -66,7 +73,7 @@ public class RestApiServlet extends HttpServlet {
                 enviarError(resp, 405, "Método no permitido.");
             }
         } catch (Exception e) {
-            enviarError(resp, 500, "Error interno: " + e.getMessage());
+            enviarError(resp, 400, "Error procesando la solicitud: " + e.getMessage());
         }
     }
 
@@ -80,6 +87,12 @@ public class RestApiServlet extends HttpServlet {
         } else if (path.startsWith("/test/")) {
             String codigo = path.substring("/test/".length());
             obtenerEstructuraTest(codigo, resp);
+        } else if (path.matches("/candidatos/.+/login")) {
+            String identificacion = path.split("/")[2];
+            loginCandidato(identificacion, resp);
+        } else if (path.matches("/candidatos/.+/tests")) {
+            String identificacion = path.split("/")[2];
+            obtenerTestsCandidato(identificacion, resp);
         } else {
             enviarError(resp, 404, "Ruta no encontrada: " + path);
         }
@@ -89,9 +102,14 @@ public class RestApiServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String path = req.getPathInfo() == null ? "/" : req.getPathInfo();
         
-        if (path.equals("/candidatos/iniciar-test")) {
+        if (path.equals("/candidatos/registro")) {
             CandidatoRequestDTO request = leerJsonBody(req, CandidatoRequestDTO.class);
-            iniciarTest(request, resp);
+            registrarCandidato(request, resp);
+        } else if (path.matches("/candidatos/.+/test/.+/iniciar")) {
+            String[] partes = path.split("/");
+            String identificacion = partes[2];
+            String codigoTest = partes[4];
+            iniciarTest(identificacion, codigoTest, resp);
         } else if (path.matches("/intentos/\\d+/finalizar")) {
             String[] partes = path.split("/");
             int idIntento = Integer.parseInt(partes[2]);
@@ -104,19 +122,30 @@ public class RestApiServlet extends HttpServlet {
 
     // ======================== CANDIDATO ========================
 
-    private void iniciarTest(CandidatoRequestDTO request, HttpServletResponse resp) throws IOException {
+    private void loginCandidato(String identificacion, HttpServletResponse resp) throws IOException {
         EntityManager em = XPersistence.getManager();
+        Candidato candidato = buscarCandidatoPorIdentificacion(em, identificacion);
+        if (candidato == null) {
+            enviarError(resp, 404, "Candidato no encontrado.");
+            return;
+        }
+        
+        CandidatoResponseDTO dto = new CandidatoResponseDTO();
+        dto.setIdentificacion(candidato.getIdentificacion());
+        dto.setNombreCompleto(candidato.getNombreCompleto());
+        
+        enviarJson(resp, dto);
+    }
 
+    private void registrarCandidato(CandidatoRequestDTO request, HttpServletResponse resp) throws IOException {
+        EntityManager em = XPersistence.getManager();
         try {
-
-            // 1. Buscar o Crear Candidato
             Candidato candidato = buscarCandidatoPorIdentificacion(em, request.getIdentificacion());
             if (candidato == null) {
                 candidato = new Candidato();
                 candidato.setIdentificacion(request.getIdentificacion());
             }
 
-            // Actualizar datos del candidato con la información más reciente
             candidato.setNombreCompleto(request.getNombreCompleto());
             candidato.setNivelEducativo(request.getNivelEducativo());
             candidato.setGenero(request.getGenero());
@@ -132,15 +161,81 @@ public class RestApiServlet extends HttpServlet {
                 em.merge(candidato);
             }
 
-            // 2. Validar que el Test exista
+            CandidatoResponseDTO dto = new CandidatoResponseDTO();
+            dto.setIdentificacion(candidato.getIdentificacion());
+            dto.setNombreCompleto(candidato.getNombreCompleto());
+
+            resp.setStatus(201);
+            enviarJson(resp, dto);
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().setRollbackOnly();
+            }
+            enviarError(resp, 400, e.getMessage() != null ? e.getMessage() : "Error al registrar el candidato.");
+        }
+    }
+
+    private void obtenerTestsCandidato(String identificacion, HttpServletResponse resp) throws IOException {
+        EntityManager em = XPersistence.getManager();
+        Candidato candidato = buscarCandidatoPorIdentificacion(em, identificacion);
+        if (candidato == null) {
+            enviarError(resp, 404, "Candidato no encontrado.");
+            return;
+        }
+
+        List<CandidatoTestStatusDTO> tests = new ArrayList<>();
+        
+        // Verificamos el BFA
+        try {
+            TestLadrillosCubos testBfa = (TestLadrillosCubos) em.createQuery(
+                    "select t from TestLadrillosCubos t where t.codigoTest = 'BFA'")
+                    .getSingleResult();
+            
+            CandidatoTestStatusDTO dto = new CandidatoTestStatusDTO();
+            dto.setCodigoTest(testBfa.getCodigoTest());
+            dto.setNombreTest("Batería de Funciones Aptitudinales");
+            
+            if (!testBfa.isActivo()) {
+                dto.setEstado("INACTIVO");
+            } else {
+                // Verificar si ya tiene un intento completado
+                Long terminados = (Long) em.createQuery("select count(i) from IntentoTest i where i.candidato.id = :candidatoId and i.test.id = :testId and i.estado = :estado")
+                    .setParameter("candidatoId", candidato.getId())
+                    .setParameter("testId", testBfa.getId())
+                    .setParameter("estado", EstadoIntento.FINALIZADO)
+                    .getSingleResult();
+                
+                if (terminados > 0) {
+                    dto.setEstado("COMPLETADO");
+                } else {
+                    dto.setEstado("DISPONIBLE");
+                }
+            }
+            tests.add(dto);
+        } catch (NoResultException e) {
+            // El test BFA no está en la base de datos
+        }
+        
+        enviarJson(resp, tests);
+    }
+
+    private void iniciarTest(String identificacion, String codigoTest, HttpServletResponse resp) throws IOException {
+        EntityManager em = XPersistence.getManager();
+        try {
+            Candidato candidato = buscarCandidatoPorIdentificacion(em, identificacion);
+            if (candidato == null) {
+                enviarError(resp, 404, "Candidato no encontrado.");
+                return;
+            }
+
             TestLadrillosCubos test;
             try {
                 test = (TestLadrillosCubos) em.createQuery(
                         "select t from TestLadrillosCubos t where t.codigoTest = :codigo")
-                        .setParameter("codigo", request.getCodigoTest())
+                        .setParameter("codigo", codigoTest)
                         .getSingleResult();
             } catch (NoResultException e) {
-                enviarError(resp, 404, "El test con código " + request.getCodigoTest() + " no existe.");
+                enviarError(resp, 404, "El test con código " + codigoTest + " no existe.");
                 return;
             }
 
@@ -149,29 +244,32 @@ public class RestApiServlet extends HttpServlet {
                 return;
             }
 
-            // 3. Iniciar un nuevo Intento
-            IntentoTest intento;
-            try {
-                intento = candidato.iniciarTest(test);
-                em.persist(intento);
-            } catch (IllegalStateException e) {
-                enviarError(resp, 400, e.getMessage());
+            // Verificar si ya lo terminó
+            Long terminados = (Long) em.createQuery("select count(i) from IntentoTest i where i.candidato.id = :candidatoId and i.test.id = :testId and i.estado = :estado")
+                .setParameter("candidatoId", candidato.getId())
+                .setParameter("testId", test.getId())
+                .setParameter("estado", EstadoIntento.FINALIZADO)
+                .getSingleResult();
+
+            if (terminados > 0) {
+                enviarError(resp, 400, "Ya has completado este test.");
                 return;
             }
 
-            // 4. Devolver respuesta exitosa
+            IntentoTest intento = candidato.iniciarTest(test);
+            em.persist(intento);
+
             Map<String, Object> responseData = new LinkedHashMap<>();
             responseData.put("idIntento", intento.getId());
-            responseData.put("mensaje", "Candidato registrado e intento de test iniciado correctamente.");
+            responseData.put("mensaje", "Intento iniciado.");
 
             resp.setStatus(201);
             enviarJson(resp, responseData);
-
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().setRollbackOnly();
             }
-            enviarError(resp, 400, e.getMessage() != null ? e.getMessage() : "Error interno al registrar el candidato.");
+            enviarError(resp, 400, e.getMessage() != null ? e.getMessage() : "Error interno.");
         }
     }
 
