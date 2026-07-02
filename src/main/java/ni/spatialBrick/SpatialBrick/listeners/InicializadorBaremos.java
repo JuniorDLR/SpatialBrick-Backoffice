@@ -52,6 +52,7 @@ public class InicializadorBaremos implements ServletContextListener {
         insertarBaremo(em, 40, 14, 14);
         insertarBaremo(em, 30, 13, 13);
         insertarBaremo(em, 25, 12, 12);
+        insertarBaremo(em, 20, 11, 11);
         insertarBaremo(em, 15, 10, 10);
         insertarBaremo(em, 10, 9, 9);
         insertarBaremo(em, 5, 8, 8);
